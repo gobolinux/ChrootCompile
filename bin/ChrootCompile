@@ -82,6 +82,11 @@ else
     esac
 fi
 
+if [ "$goboPrefix" ]
+then programs=`echo $goboPrograms | sed "s,^$goboPrefix,,g"`
+else programs=$goboPrograms
+fi
+
 targetarch=$recipesubdir
 
 unset local_programs
@@ -118,6 +123,7 @@ fi
 #############################################################################
 base_dependencies=(
     "Linux-Headers" # needed to bootstrap Glibc
+    "Gawk"       # needed by Compile and to bootstrap Glibc
     "Glibc"
     "Ncurses"    # needed by Bash
     "Readline"   # needed by Bash
@@ -127,7 +133,6 @@ base_dependencies=(
     "PCRE"       # needed by Grep
     "Grep"       # needed by Scripts
     "Python"     # needed by Scripts
-    "Gawk"       # needed by Compile
     "FindUtils"  # needed by Compile (find)
     "DB"         # needed by Perl on 013
     "Bzip2"      # needed by Atool
@@ -296,7 +301,7 @@ function create_root() {
    mkdir -p $rootdir/Files/Compile
    mkdir -p $rootdir/Files/Compile/Archives
    mkdir -p $rootdir/Mount
-   mkdir -p $rootdir/$goboPrograms
+   mkdir -p $rootdir/$programs
    mkdir -p $rootdir/usr
 
    mkdir -p $rootdir/Depot/$hostgetclean
@@ -529,15 +534,15 @@ do
    needsprocessing="no"
    for dep in $hostdeps
    do
-      [ -d $root/$goboPrograms/$dep ] && continue
+      [ -d $root/$programs/$dep ] && continue
       echo Installing \"$dep\"...
       load_dependency "$dep" "$hostgetclean BaseDependencies" "$hostarch"
 
       # if just loaded dependency doesn't have a Dependencies file, skip to next entry
-      [ ! -e $root/$goboPrograms/$dep/Current/Resources/Dependencies ] && continue
+      [ ! -e $root/$programs/$dep/Current/Resources/Dependencies ] && continue
       
       # for each program at dependencies list (no version handling)...
-      for i in `cat $root/$goboPrograms/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
+      for i in `cat $root/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
          # if the program is not already at dependencies list, append it and force extra recursion
          if [ ! "`echo $hostdeps | grep -w  $i`" ]
@@ -551,7 +556,7 @@ do
    
    for dep in $targetdeps
    do
-      [ -d $targetroot/$goboPrograms/$dep ] && continue
+      [ -d $targetroot/$programs/$dep ] && continue
       if [ "$hostarch" = "$targetarch" ]
       then echo Installing \"$dep\"...
       elif is_blacklisted $dep
@@ -559,12 +564,12 @@ do
       else echo Installing \"$dep\" for $targetarch...
       fi
       load_dependency "$dep" "$targetrepository" "$targetarch"
-      [ ! -e $targetroot/$goboPrograms/$dep/Current/Resources/Dependencies ] && continue
+      [ ! -e $targetroot/$programs/$dep/Current/Resources/Dependencies ] && continue
 
       # FIXME: There's (almost) duplicated right above...
       # It took me quite a while to figure out what was going on
       # when I fixed a bug above and didn't catch the same error here.
-      for i in `cat $targetroot/$goboPrograms/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
+      for i in `cat $targetroot/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
          if [ ! "`echo $hostdeps | grep -w  $i`" ]
          then
@@ -615,17 +620,17 @@ cat <<EOF > $root/$settingsdir/hosts
 127.0.0.1 localhost $hostname
 EOF
 
-sudo_rm_if_e $root/$goboPrograms/Sudo/Settings/sudoers
-$sudo_exec chmod 777 $root/$goboPrograms/Sudo/Settings
-cat <<EOF > $root/$goboPrograms/Sudo/Settings/sudoers
+sudo_rm_if_e $root/$programs/Sudo/Settings/sudoers
+$sudo_exec chmod 777 $root/$programs/Sudo/Settings
+cat <<EOF > $root/$programs/Sudo/Settings/sudoers
 gobo ALL=(ALL) NOPASSWD: ALL
 EOF
-$sudo_exec chmod 755 $root/$goboPrograms/Sudo/Settings
+$sudo_exec chmod 755 $root/$programs/Sudo/Settings
 
-$sudo_exec chmod 440 $root/$goboPrograms/Sudo/Settings/sudoers
-$sudo_exec chown 0:0 $root/$goboPrograms/Sudo/Settings/sudoers
+$sudo_exec chmod 440 $root/$programs/Sudo/Settings/sudoers
+$sudo_exec chown 0:0 $root/$programs/Sudo/Settings/sudoers
 sudo_rm_if_e $root/System/Settings/sudoers
-ln -nfs /$goboPrograms/Sudo/Settings/sudoers $root/$settingsdir/sudoers
+ln -nfs /$programs/Sudo/Settings/sudoers $root/$settingsdir/sudoers
 touch $root/$settingsdir/fstab
 
 # This should limit network access inside the chroot
@@ -679,7 +684,7 @@ in_chroot ldconfig
 
 if [ -e Directories.conf ]
 then
-   $sudo_exec cp Directories.conf $root/$goboPrograms/Scripts/Settings/Scripts/Directories.conf
+   $sudo_exec cp Directories.conf $root/$programs/Scripts/Settings/Scripts/Directories.conf
 fi
 
 if ! [ "$chrootcompileMode" = "gobo" ]
@@ -692,8 +697,11 @@ fi
 #############################################################################
 
 # Only local packages are used to fullfil dependencies
-$sudo_exec bash -c "echo 'defaultRepositories=( local_package )' > $root/$goboPrograms/Scripts/Settings/Scripts/FindPackage.conf"
-$sudo_exec bash -c "echo 'defaultLocalPackagesPaths=( /Depot/$targetgetclean ; )' >> $root/$goboPrograms/Scripts/Settings/Scripts/GetAvailable.conf"
+$sudo_exec bash -c "echo 'defaultRepositories=( local_package )' > $root/$programs/Scripts/Settings/Scripts/FindPackage.conf"
+$sudo_exec bash -c "echo 'defaultLocalPackagesPaths=( /Depot/$targetgetclean ; )' >> $root/$programs/Scripts/Settings/Scripts/GetAvailable.conf"
+
+in_chroot bash
+exit 0
 
 function check_dependencies() {
    [ "$verbose" ] && echo "ChrootCompile: Checking dependencies..."

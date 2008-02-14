@@ -65,9 +65,14 @@ fi
 crossprefixdir="$3"
 root="$2/$crossprefixdir"
 
+if [ "$goboPrefix" ]
+then programs=`echo $goboPrograms | sed "s,^$goboPrefix,,g"`
+else programs=$goboPrograms
+fi
+
 [ "$verbose" ] && echo "MiniInstallPackage: Installing $name version $version..."
 
-pushd "$root/$goboPrograms" &> /dev/null
+pushd "$root/$programs" &> /dev/null
 if [ "$realcopy" ]
 then
    mkdir -p "$name"
@@ -90,4 +95,4 @@ then
 fi
 popd &> /dev/null
 
-MiniSymlinkProgram $verbose $usenewnames $goboPrograms/$name/$version $root $crossprefixdir 2>&1 | grep -v "/CVS/"
+MiniSymlinkProgram $verbose $usenewnames $programs/$name/$version $root $crossprefixdir 2>&1 | grep -v "/CVS/"
