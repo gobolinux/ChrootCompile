@@ -7,7 +7,7 @@
 # based on RescueSymlinkProgram by
 # (C) 2004 Andre Detsch. Released under the GNU GPL.
 #     detsch at gobolinux.org
-
+#
 
 scriptdir=$(readlink -f $(dirname $0))
 
@@ -37,9 +37,9 @@ then
     shift
 fi
 
-crossprefixdir="$3"
 full_path="$1"
 root="`readlink -f $2`"
+crossprefixdir="$3"
 
 if [ "$newnames" ]
 then gobolinks="$crossprefixdir/System/Index"
