@@ -13,6 +13,7 @@ Import OptionParser
 scriptCredits="Copyright (C) 2005-2006 Hisham H. Muhammad. Released under the GNU GPL."
 scriptUsage="[options] { <recipe> [<version>] | <path_to_recipe> }"
 Add_Option_Boolean "l" "local-repository" "Look at the local repository for recipes." ""
+Add_Option_Boolean "r" "revisions-tree" "Look at the local revisions tree for recipes (implies --local-repository)." ""
 Add_Option_Boolean "n" "new-names" "Compile using new names from /System/Index hierarchy." ""
 Add_Option_Boolean "p" "local-programs" "Take entries from /Programs (use with care)." ""
 Add_Option_Boolean "s" "setup-environment" "Creates the chroot environment by calling SetupChrootEnv" ""
@@ -44,6 +45,14 @@ fi
 
 unset localrepository
 Boolean "local-repository" && localrepository=yes
+
+unset userevisionstree
+if Boolean "revisions-tree"
+then
+    Parse_Conf --mandatory "DevelScripts/CompileSubversion.conf"
+    userevisionstree=yes
+    localrepository=yes
+fi
 
 hostarch=`uname -m`
 case "$hostarch" in
@@ -186,6 +195,10 @@ then trydirs=(${compileLocalRecipesDir} "${compileRecipeDirs[@]}" ${compileGetRe
 else trydirs=(Recipes)
 fi
 
+if [ "$userevisionstree" ]
+then trydirs=(${compileSubversionLocalRevisions} "${trydirs[@]}")
+fi
+
 for trydir in "${trydirs[@]}"
 do
    recipedir="`GuessLatest $trydir/$name/$version*`"
@@ -237,8 +250,10 @@ function unmount_dir() {
 
 function cleanup() {
    unset LANG LC_ALL
+   unset revisionsdir
+   [ "$userevisionstree" ] && revisionsdir="$root/$compileSubversionLocalRevisions"
    for point in $root/Files/Compile/Archives $root/Files/Compile $crosstoolchaindir \
-       $crosskerneldir $root/$cross_prefix_dir/System/Kernel/Modules
+       $crosskerneldir $root/$cross_prefix_dir/System/Kernel/Modules $revisionsdir
    do
       unmount_dir $point
    done
@@ -397,6 +412,13 @@ then
         mkdir -p $root/$crosskerneldir
         $sudo_exec mount --bind $crosskerneldir $root/$crosskerneldir
     fi
+fi
+
+if [ "$userevisionstree" ]
+then
+    [ "$verbose" ] && echo "ChrootCompile: bind-mounting ${compileSubversionLocalRevisions} inside $root"
+    $sudo_exec mkdir -p $root/$compileSubversionLocalRevisions
+    $sudo_exec mount --bind ${compileSubversionLocalRevisions} $root/$compileSubversionLocalRevisions
 fi
 
 #############################################################################
