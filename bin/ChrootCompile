@@ -759,7 +759,7 @@ function check_dependencies() {
 
 echo "ChrootCompile: Will run Compile..."
 unset failed
-in_chroot Compile --batch --no-web --no-sign $verbose $crossopts $name $version || failed=yes
+in_chroot Compile --batch --no-web --no-sign --no-postinstall --no-requirements $verbose $crossopts $name $version || failed=yes
 if [ "$failed" ]
 then
    if [ ! "$nodebug" ]
