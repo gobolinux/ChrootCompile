@@ -646,9 +646,6 @@ fi
 $sudo_exec bash -c "echo 'defaultRepositories=( local_package )' > $root/$programs/Scripts/Settings/Scripts/FindPackage.conf"
 $sudo_exec bash -c "echo 'defaultLocalPackagesPaths=( /Depot/$targetgetclean ; )' >> $root/$programs/Scripts/Settings/Scripts/GetAvailable.conf"
 
-#in_chroot bash
-#exit 0
-
 function check_dependencies() {
    [ "$verbose" ] && echo "ChrootCompile: Checking dependencies..."
    
