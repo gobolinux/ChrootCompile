@@ -231,7 +231,7 @@ then
    Die "Could not find recipe for $name $version"
 fi
 
-echo "ChrootCompile: Compiling $name $version..."
+Log_Normal "ChrootCompile: Compiling $name $version..."
 
 #############################################################################
 # Preparing stub root directory
@@ -244,41 +244,59 @@ putclean=Clean/$targetarch
 mkdir -p $hostgetclean
 mkdir -p $targetgetclean
 
-echo "ChrootCompile: Preparing $root..."
+Log_Normal "ChrootCompile: Preparing $root..."
 
 #############################################################################
 # Setting signal handlers (cleanup before exit if interrupted)
 #############################################################################
 
-function unmount_dir() {
-   [ "$verbose" ] && echo "ChrootCompile: Will unmount $point..."
-   $sudo_exec umount $1 2>&1 | grep -v "not mounted" /dev/null || true
-}
-
 function cleanup() {
+   local ret=0
+   local quiet="$1"
    unset LANG LC_ALL
    unset revisionsdir
    [ "$userevisionstree" ] && revisionsdir="$root/$compileSubversionLocalRevisions"
-   for point in $root/Files/Compile/Archives $root/Files/Compile $crosstoolchaindir \
-       $crosskerneldir $root/$cross_prefix_dir/System/Kernel/Modules $revisionsdir
-   do
-      unmount_dir $point
-   done
-   mount | grep "$root" | awk '{ print $3 }' | while read mp
-   do 
-      unmount_dir $mp
-   done
+
+   function unmount_dir() {
+      Log_Verbose "Unmounting $1..."
+      $sudo_exec umount "$1" || ret=1
+   }
+
+   if [ "$quiet" ]
+   then unmount="Quiet unmount_dir"
+   else unmount="unmount_dir"
+   fi
+
+   # umount batch
+   if [ "$crossopts" ]
+   then
+      [ -d "$cross_prefix_dir/$goboModules" ] && $unmount "$root/$cross_prefix_dir/$goboModules"
+      $unmount $root/$crosstoolchaindir
+   fi
+   $unmount $root/Depot/$targetgetclean
+   $unmount $root/Depot/$hostgetclean
+   $unmount $root/System/Kernel/Status
+   $unmount $root/System/Kernel/Devices
+   [ "$userevisionstree" ] && $unmount "$root/$compileSubversionLocalRevisions"
+   if [ ! "$localrepository" ]
+   then
+      $unmount "$root/Files/Compile/Archives"
+   else
+      [ -d "$crosskerneldir" ] && $unmount "$root/$crosskerneldir"
+      $unmount "$root/Files/Compile"
+   fi
    rmdir Archives 2> /dev/null
+   return $ret
 }
 
 trap cleanup TERM STOP HUP EXIT
 
-cleanup
+cleanup "quiet" || Log_Terse "At least one mountpoint was not cleanly unmounted."
 
 if [ -d "$root" ]
 then
    date=`date +%Y%m%d-%H%M`
-   echo "Backing up old $root to $root-old-$date."
+   Log_Normal "Backing up old $root to $root-old-$date."
    $sudo_exec mv $root $root-old-$date
 fi
 
@@ -320,19 +338,19 @@ if [ -d Recipes ]
 then
    cp -rL Recipes $root/Files/Compile
 else
-   echo "Warning, ./Recipes not found. Skipping copy of recipes inside $root"
-   echo "Assuming use of local repository from host's ${compileDir}."
+   Log_Terse "Warning, ./Recipes not found. Skipping copy of recipes inside $root"
+   Log_Terse "Assuming use of local repository from host's ${compileDir}."
    localrepository=yes
 fi
 
 if [ "$localrepository" ]
 then
-    [ "$verbose" ] && echo "ChrootCompile: bind-mounting ${compileDir} inside $root"
+    Log_Normal "ChrootCompile: bind-mounting ${compileDir} inside $root"
     $sudo_exec mount --bind ${compileDir} $root/Files/Compile
 
     if [ -d "$crosskerneldir" ]
     then
-        [ "$verbose" ] && echo "ChrootCompile: bind-mounting $crosskerneldir inside $root"
+        Log_Verbose "ChrootCompile: bind-mounting $crosskerneldir inside $root"
         mkdir -p $root/$crosskerneldir
         $sudo_exec mount --bind $crosskerneldir $root/$crosskerneldir
     fi
@@ -340,7 +358,7 @@ fi
 
 if [ "$userevisionstree" ]
 then
-    [ "$verbose" ] && echo "ChrootCompile: bind-mounting ${compileSubversionLocalRevisions} inside $root"
+    Log_Verbose "ChrootCompile: bind-mounting ${compileSubversionLocalRevisions} inside $root"
     $sudo_exec mkdir -p $root/$compileSubversionLocalRevisions
     $sudo_exec mount --bind ${compileSubversionLocalRevisions} $root/$compileSubversionLocalRevisions
 fi
@@ -373,7 +391,7 @@ done
 #############################################################################
 # Installing base packages inside root directory
 #############################################################################
-echo "ChrootCompile: Installing base packages inside $root..."
+Log_Normal "ChrootCompile: Installing base packages inside $root..."
 
 function filter_dir() {
    grep -v \/Settings\/ | grep -v \/Variable\/ | grep -v \/Current\/
@@ -719,5 +737,11 @@ else
 fi
 
 # Remove the left over Area
-cleanup
-[ -d "$root" ] && rm -rf "$root"
+ret=cleanup
+if [ -d "$root" ]
+then 
+   if [ $ret == 0 ]
+   then rm -rf "$root"
+   else Log_Normal "Will not remove $root as it appears to be still in use."
+   fi
+fi
