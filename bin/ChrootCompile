@@ -259,7 +259,11 @@ function cleanup() {
 
    function unmount_dir() {
       Log_Verbose "Unmounting $1..."
-      $sudo_exec umount "$1" || ret=1
+      if grep -q "$1" /proc/mounts
+      then $sudo_exec umount "$1"
+      else true
+      fi
+      ret=$?
    }
 
    if [ "$quiet" ]
@@ -270,25 +274,25 @@ function cleanup() {
    # umount batch
    for dep in $hostdeps $targetdeps
    do
-      local depversion="$(ls $root/Programs/$dep/ | grep -v "Settings\|Current")"
-      unmount_dir "$root/Programs/$dep/$depversion"
+      local depversion="$(ls $root/Programs/$dep/ 2> /dev/null | grep -v "Settings\|Current")"
+      $unmount "${root}Programs/$dep/$depversion"
    done
    if [ "$crossopts" ]
    then
-      [ -d "$cross_prefix_dir/$goboModules" ] && $unmount "$root/$cross_prefix_dir/$goboModules"
-      $unmount $root/$crosstoolchaindir
+      [ -d "$cross_prefix_dir/$goboModules" ] && $unmount "${root}$cross_prefix_dir/$goboModules"
+      $unmount ${root}$crosstoolchaindir
    fi
-   $unmount $root/Depot/$targetgetclean
-   $unmount $root/Depot/$hostgetclean
-   $unmount $root/System/Kernel/Status
-   $unmount $root/System/Kernel/Devices
-   [ "$userevisionstree" ] && $unmount "$root/$compileSubversionLocalRevisions"
+   $unmount ${root}Depot/$targetgetclean
+   $unmount ${root}Depot/$hostgetclean
+   $unmount ${root}System/Kernel/Status
+   $unmount ${root}System/Kernel/Devices
+   [ "$userevisionstree" ] && $unmount "${root}$compileSubversionLocalRevisions"
    if [ ! "$localrepository" ]
    then
       $unmount "$root/Files/Compile/Archives"
    else
-      [ -d "$crosskerneldir" ] && $unmount "$root/$crosskerneldir"
-      $unmount "$root/Files/Compile"
+      [ -d "$crosskerneldir" ] && $unmount "${root}$crosskerneldir"
+      $unmount "${root}Files/Compile"
    fi
    rmdir Archives 2> /dev/null
    return $ret
