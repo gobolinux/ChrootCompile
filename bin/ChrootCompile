@@ -268,6 +268,11 @@ function cleanup() {
    fi
 
    # umount batch
+   for dep in $hostdeps $targetdeps
+   do
+      local depversion="$(ls $root/Programs/$dep/ | grep -v "Settings\|Current")"
+      unmount_dir "$root/Programs/$dep/$depversion"
+   done
    if [ "$crossopts" ]
    then
       [ -d "$cross_prefix_dir/$goboModules" ] && $unmount "$root/$cross_prefix_dir/$goboModules"
