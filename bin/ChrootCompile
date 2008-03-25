@@ -8,8 +8,6 @@ Import GoboLinux
 Import OptionParser
 Import Bootstrap
 
-export NO_UNIONFS=yes
-
 #############################################################################
 # Setting options
 #############################################################################
