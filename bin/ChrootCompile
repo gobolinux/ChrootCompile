@@ -8,6 +8,8 @@ Import GoboLinux
 Import OptionParser
 Import Bootstrap
 
+export NO_UNIONFS=yes
+
 #############################################################################
 # Setting options
 #############################################################################
@@ -242,9 +244,13 @@ root=$PWD/Area-$name-$version
 hostgetclean=Clean/$hostarch
 targetgetclean=Clean/$targetarch
 putclean=Clean/$targetarch
+hostdepsdownload=Downloaded/$hostarch
+targetdepsdownload=Downloaded/$targetarch
 
 mkdir -p $hostgetclean
 mkdir -p $targetgetclean
+mkdir -p $hostdepsdownload
+mkdir -p $targetdepsdownload
 
 Log_Normal "ChrootCompile: Preparing $root..."
 
@@ -456,9 +462,10 @@ function unpack_package() {
    
 function download_dependency() {
    local pkg=$(FindPackage -t official_package "$1")
+   local depsdir="$2"
    [ "$pkg" ] && wget "$pkg" || return
-   mv "$(basename "$pkg")" "$putclean"
-   pkg=`ls $putclean/$dep--* 2> /dev/null || true`
+   mv "$(basename "$pkg")" "$depsdir"
+   pkg=`ls $depsdir/$dep--* 2> /dev/null || true`
    echo "$pkg"
 }
 
@@ -475,8 +482,9 @@ function load_dependency() {
       fi
    else
       local pkg=`get_package_for "$dep" "$repositories"`
-      [ ! "$pkg" ] && pkg=`download_dependency "$dep"`
-      [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at Clean/$arch."
+	  local depsdir="$(echo $repositories | awk {'print $NF'})"
+      [ ! "$pkg" ] && pkg=`download_dependency "$dep" "$depsdir"`
+      [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
       unpacked=`unpack_package "$pkg" "$dep" "$arch"`
    fi
    if [ $dep = $name ]
@@ -523,7 +531,7 @@ do
    do
       [ -d $root/$programs/$dep ] && continue
       echo Installing \"$dep\"...
-      load_dependency "$dep" "$hostgetclean BaseDependencies" "$hostarch"
+      load_dependency "$dep" "$hostgetclean BaseDependencies $hostdepsdownload" "$hostarch"
 
       # if just loaded dependency doesn't have a Dependencies file, skip to next entry
       [ ! -e $root/$programs/$dep/Current/Resources/Dependencies ] && continue
@@ -550,7 +558,7 @@ do
       then continue
       else echo Installing \"$dep\" for $targetarch...
       fi
-      load_dependency "$dep" "$targetrepository" "$targetarch"
+      load_dependency "$dep" "$targetrepository $targetdepsdownload" "$targetarch"
       [ ! -e $targetroot/$programs/$dep/Current/Resources/Dependencies ] && continue
 
       # FIXME: There's (almost) duplicated right above...
