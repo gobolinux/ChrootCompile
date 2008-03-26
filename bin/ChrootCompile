@@ -774,7 +774,8 @@ else
 fi
 
 # Remove the left over Area
-ret=cleanup
+cleanup
+ret=$?
 if [ -d "$root" ]
 then 
    if [ $ret == 0 ]
