@@ -24,6 +24,7 @@ Add_Option_Entry "d" "use-directory" "Use specified directory as root for Chroot
 Add_Option_Boolean "S" "no-sign" "Do not try to sign the resulting package."
 Add_Option_Boolean "D" "no-debug" "Do not invoke bash if compilation fails."
 Add_Option_Boolean "W" "no-web" "Do not download precompiled packages from the web when Dependencies are not found." ""
+Add_Option_Boolean "R" "no-recursive" "Do not recursively ChrootCompile dependencies that doesn't have a package." ""
 scriptExample="--local-repository /Files/Compile/LocalRecipes/Foo/1.0"
 helpOnNoArguments=yes
 Parse_Options "$@"
@@ -66,6 +67,9 @@ Boolean "no-web" && noweb=yes
 
 unset usetmpfs
 Boolean "use-tmpfs" && usetmpfs=yes
+
+unset norecursive
+Boolean "no-recursive" && norecursive=yes
 
 hostarch=`uname -m`
 case "$hostarch" in
@@ -192,6 +196,7 @@ if [ "$(Arg 2)" ]
 then
    name="$(Arg 1)"
    version="$(Arg 2)"
+   parsedoptions=$(echo $(Get_Parsed_Options) | awk {' $(NF-1)=""; $NF=""; print '})
 else
    if [ -d "$(Arg 1)" ]
    then
@@ -201,7 +206,31 @@ else
       name="$(Arg 1)"
       version=""
    fi
+   numargs=$(( ${#userargs[@]} - 1 ))
+   parsedoptions=$(echo $(Get_Parsed_Options) | awk {' $NF=""; print '})
 fi
+
+function locate_recipe() {
+   for trydir in "${trydirs[@]}"
+   do
+      recipedir="`GuessLatest $trydir/$name/$version*`"
+      if [ -e "$recipedir/Recipe" ]
+      then
+         setversion=$(basename "$recipedir")
+         if ! [ "$version" ]
+         then
+            # If it made a decision, check if it picked the right recipe
+            if ! Boolean "batch" && [ `ls $trydir/$name/$version* | wc -l` -gt 1 ]
+            then Ask_Continue "Will compile $name $setversion from $trydir..."
+            fi
+         fi
+         version="$setversion"
+         break
+      else
+         recipedir=""
+      fi
+   done
+}
 
 name=$(GuessProgramCase ${name})
 if [ "$localrepository" ]
@@ -213,25 +242,12 @@ if [ "$userevisionstree" ]
 then trydirs=(${compileSubversionLocalRevisions} "${trydirs[@]}")
 fi
 
-for trydir in "${trydirs[@]}"
-do
-   recipedir="`GuessLatest $trydir/$name/$version*`"
-   if [ -e "$recipedir/Recipe" ]
-   then
-      setversion=$(basename "$recipedir")
-      if ! [ "$version" ]
-      then
-         # If it made a decision, check if it picked the right recipe
-         if ! Boolean "batch" && [ `ls $trydir/$name/$version* | wc -l` -gt 1 ]
-         then Ask_Continue "Will compile $name $setversion from $trydir..."
-         fi
-      fi
-      version="$setversion"
-      break
-   else
-      recipedir=""
-   fi
-done
+locate_recipe
+
+if [ ! "$noweb" -a ! "$recipedir" -a "$localrepository" ]
+then
+   GetRecipe $name $version && locate_recipe
+fi
 
 if ! [ "$recipedir" ]
 then
@@ -475,6 +491,14 @@ function download_dependency() {
    echo "$pkg"
 }
 
+function compile_dependency() {
+   local recipe=$(GetRecipe $1 $2)
+   echo ChrootCompile $parsedoptions $recipe
+   if [ "$recipe" ]
+   then ChrootCompile $parsedoptions $recipe
+   fi
+}
+
 function load_dependency() {
    local dep="$1"
    local repositories="$2"
@@ -490,6 +514,7 @@ function load_dependency() {
       local pkg=`get_package_for "$dep" "$repositories"`
 	  local depsdir="$(echo $repositories | awk {'print $NF'})"
       [ ! "$pkg" ] && pkg=`download_dependency "$dep" "$depsdir"`
+      [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency $dep && pkg=`get_package_for "$dep" "$putclean"`
       [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
       unpacked=`unpack_package "$pkg" "$dep" "$arch"`
    fi
