@@ -181,6 +181,9 @@ base_dependencies=(
     "Util-Linux" # needed by Compile (mount)
     "DiffUtils"  # needed by Compile (diff)
     "Texinfo"    # needed by packages that generate info pages (makeinfo)
+    "Udev"       # needed when using a FUSE based unionfs implementation
+    "Fuse"       # needed by UnionFS-Fuse
+    "UnionFS-Fuse"
     "Scripts"
     "Compile"
 )
@@ -346,6 +349,8 @@ function create_root() {
    then Create_Filesystem_Tree "$rootdir" "gobo" "true"
    else Create_Filesystem_Tree "$rootdir" "gobo"
    fi
+
+   Create_Device_Nodes "$rootdir"
 
    mkdir -p $rootdir/Depot/$hostgetclean
    mkdir -p $rootdir/Depot/$targetgetclean
