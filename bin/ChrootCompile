@@ -284,13 +284,12 @@ function cleanup() {
    local ret=0
    local quiet="$1"
    unset LANG LC_ALL
-   unset revisionsdir
-   [ "$userevisionstree" ] && revisionsdir="$root/$compileSubversionLocalRevisions"
 
    function unmount_dir() {
-      Log_Verbose "Unmounting $1..."
-      if grep -q "$1" /proc/mounts
-      then $sudo_exec umount "$1"
+      local mp=$(readlink -f "$1")
+      Log_Verbose "Unmounting $mp..."
+      if grep -q "$mp" /proc/mounts
+      then $sudo_exec umount "$mp"
       else true
       fi
       ret=$?
@@ -693,7 +692,7 @@ fi
 # Download required archives to ./Archives
 #############################################################################
 
-Compile --no-build ${crossopts} ${name} ${version} || Die "Fetching recipe(s) for ${name} ${version} failed"
+Compile --batch --no-build ${crossopts} ${name} ${version} || Die "Fetching recipe(s) for ${name} ${version} failed"
 
 #############################################################################
 # Setting LD_LIBRARY_PATH variable which will be used on chrooted operations
