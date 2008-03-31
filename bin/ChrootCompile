@@ -288,7 +288,7 @@ function cleanup() {
    function unmount_dir() {
       local mp=$(readlink -f "$1")
       Log_Verbose "Unmounting $mp..."
-      if grep -q "$mp" /proc/mounts
+      if [ "$mp" ] && grep -q "$mp" /proc/mounts
       then $sudo_exec umount "$mp"
       else true
       fi
