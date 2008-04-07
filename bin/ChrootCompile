@@ -162,12 +162,12 @@ base_dependencies=(
     "Python"     # needed by Scripts
     "FindUtils"  # needed by Compile (find)
     "DB"         # needed by Perl on 013
-    "Bzip2"      # needed by Atool
-    "Gzip"       # needed by Atool
-    "Tar"        # needed by Atool
-    "Unzip"      # needed by Atool
-    "Perl"       # needed by Atool
-    "Atool"      # needed by Compile
+    "Bzip2"      # needed by Scripts
+    "Gzip"       # needed by Scripts
+    "Tar"        # needed by Scripts
+    "Unzip"      # needed by Scripts
+    "LZMA-Utils" # needed by Scripts
+    "Perl"       # needed by Scripts
     "ZLib"       # needed by File
     "File"       # needed by Scripts
     "MkTemp"     # needed by Scripts
@@ -692,7 +692,7 @@ fi
 # Download required archives to ./Archives
 #############################################################################
 
-Compile --batch --no-build ${crossopts} ${name} ${version} || Die "Fetching recipe(s) for ${name} ${version} failed"
+Compile --batch --no-build ${crossopts} ${name} ${version} ${noweb} || Die "Fetching recipe(s) for ${name} ${version} failed"
 
 #############################################################################
 # Setting LD_LIBRARY_PATH variable which will be used on chrooted operations
@@ -706,7 +706,7 @@ else
 fi
 
 function in_chroot() {
-   $sudo_exec chroot $root "$@"
+   $sudo_exec env SUDO_OK=1 chroot $root "$@"
 }
 
 [ "$verbose" ] && echo "ChrootCompile: Will run ldconfig..."
@@ -808,7 +808,7 @@ ret=$?
 if [ -d "$root" ]
 then 
    if [ $ret == 0 ]
-   then rm -rf "$root"
+   then $sudo_exec rm -rf "$root"
    else Log_Normal "Will not remove $root as it appears to be still in use."
    fi
 fi
