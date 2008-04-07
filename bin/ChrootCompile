@@ -517,7 +517,7 @@ function load_dependency() {
    else
       local pkg=`get_package_for "$dep" "$repositories"`
 	  local depsdir="$(echo $repositories | awk {'print $NF'})"
-      [ ! "$pkg" ] && pkg=`download_dependency "$dep" "$depsdir"`
+      [ ! "$pkg" -a ! "$noweb" ] && pkg=`download_dependency "$dep" "$depsdir"`
       [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency $dep && pkg=`get_package_for "$dep" "$putclean"`
       [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
       unpacked=`unpack_package "$pkg" "$dep" "$arch"`
