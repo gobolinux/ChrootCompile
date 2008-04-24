@@ -175,6 +175,7 @@ base_dependencies=(
     "BinUtils"   # needed by GCC (as)
     "GCC"
     "Sudo"       # needed by Scripts
+    "Shadow"     # needed by Scripts (Functions/Requirements)
     "Make"       # needed by Compile
     "Patch"      # needed by Compile
     "E2FSProgs"  # needed by Util-Linux (libblkid.so)
@@ -758,7 +759,7 @@ function check_dependencies() {
 
 echo "ChrootCompile: Will run Compile..."
 unset failed
-in_chroot Compile --batch --no-web --no-sign --no-postinstall --no-requirements $verbose $crossopts $name $version || failed=yes
+in_chroot Compile --batch --no-web --no-sign --no-postinstall $verbose $crossopts $name $version || failed=yes
 if [ "$failed" ]
 then
    if [ ! "$nodebug" ]
