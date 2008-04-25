@@ -287,7 +287,7 @@ function cleanup() {
    unset LANG LC_ALL
 
    function unmount_dir() {
-      local mp=$(readlink -f "$1")
+      local mp=$(echo "$1" | sed 's,/\+,/,g')
       Log_Verbose "Unmounting $mp..."
       if [ "$mp" ] && grep -q "$mp" /proc/mounts
       then $sudo_exec umount "$mp"
