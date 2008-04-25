@@ -302,8 +302,9 @@ function cleanup() {
    fi
 
    # umount batch
-   for dep in $hostdeps $targetdeps
+   for line in "${targetdeps[@]}" "${hostdeps[@]}" 
    do
+      local dep=$(echo "$line" | cut -d: -f1)
       local depversion="$(ls $root/Programs/$dep/ 2> /dev/null | grep -v "Settings\|Current")"
       $unmount "${root}Programs/$dep/$depversion"
    done
@@ -486,10 +487,12 @@ function unpack_package() {
    echo "$packagemd5" > Unpacked/$arch/_Checksums/$dep
    echo "$unpacked"
 }
-   
+
 function download_dependency() {
-   local pkg=$(FindPackage -t official_package "$1")
+   local depname="$1"
    local depsdir="$2"
+   local dependenciesfile="$3"
+   local pkg=$(FindDependencies --repository=package-store --dependency="$depname" "$dependenciesfile")
    [ "$pkg" ] && wget "$pkg" || return
    mv "$(basename "$pkg")" "$depsdir"
    pkg=`ls $depsdir/$dep--* 2> /dev/null || true`
@@ -497,8 +500,25 @@ function download_dependency() {
 }
 
 function compile_dependency() {
-   local recipe=$(GetRecipe $1 $2)
-   echo ChrootCompile $parsedoptions $recipe
+   local recipe=
+   local depname="$1"
+   local dependenciesfile="$2"
+   local localrecipe=$(GetRecipe --no-web "$depname")  # XXX: we don't check versions/ranges here yet
+   local remoterecipe=$(FindDependencies --repository=recipe-store --dependency="$depname" "$dependenciesfile")
+   if [ "$remoterecipe" -a "$localrecipe" ]
+   then
+      latestrecipe=$(GuessLatest $(basename "$localrecipe") $(basename "$remoterecipe"))
+      if [ "$(basename $localrecipe)" == "$(basename $remoterecipe)" ]
+      then recipe="$localrecipe"
+      else echo "$latestrecipe" | grep -q "$remoterecipe" && recipe="$(GetRecipe $remoterecipe)" || recipe="$localrecipe"
+      fi
+   elif [ "$remoterecipe" ]
+   then
+      recipe="$(GetRecipe $remoterecipe)"
+   elif [ "$localrecipe" ]
+   then
+      recipe="$localrecipe"
+   fi
    if [ "$recipe" ]
    then ChrootCompile $parsedoptions $recipe
    fi
@@ -508,6 +528,7 @@ function load_dependency() {
    local dep="$1"
    local repositories="$2"
    local arch="$3"
+   local dependenciesfile="$4"
    if [ "$local_programs" ]
    then
       unpacked="/Programs/$dep/Current/"
@@ -518,8 +539,11 @@ function load_dependency() {
    else
       local pkg=`get_package_for "$dep" "$repositories"`
 	  local depsdir="$(echo $repositories | awk {'print $NF'})"
-      [ ! "$pkg" -a ! "$noweb" ] && pkg=`download_dependency "$dep" "$depsdir"`
-      [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency $dep && pkg=`get_package_for "$dep" "$putclean"`
+      if [ ! "$pkg" -a ! -z "$dependenciesfile" ]
+      then
+         [ ! "$noweb" ] && pkg=`download_dependency "$dep" "$depsdir" "$dependenciesfile"`
+         [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency "$dep" "$dependenciesfile" && pkg=`get_package_for "$dep" "$putclean"`
+      fi
       [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
       unpacked=`unpack_package "$pkg" "$dep" "$arch"`
    fi
@@ -544,14 +568,24 @@ function is_blacklisted() {
    return 1
 }
 
-hostdeps=$({
+hostdeps=( $({
    echo "${base_dependencies[*]} " | tr " " "\n" 
-   [ -e "${recipedir}/Resources/BuildDependencies" ] && cut -d" " -f1 "${recipedir}/Resources/BuildDependencies" | sed '/^#.*/d'
-} | sort -u | strings -n 1)
+   if [ -e "${recipedir}/Resources/BuildDependencies" ]
+   then
+      for entry in $(cut -d" " -f1 "${recipedir}/Resources/BuildDependencies" | sed '/^#.*/d')
+      do echo "$entry:${recipedir}/Resources/BuildDependencies"
+      done
+   fi
+} | sort -u | strings -n 1) )
 
-targetdeps=$({
-   [ -e "${recipedir}/Resources/Dependencies" ] && cut -d" " -f1 "${recipedir}/Resources/Dependencies" | sed '/^#.*/d'
-} | sort -u | strings -n 1)
+targetdeps=( $({
+   if [ -e "${recipedir}/Resources/Dependencies" ]
+   then 
+      for entry in $(cut -d" " -f1 "${recipedir}/Resources/Dependencies" | sed '/^#.*/d')
+      do echo "$entry:${recipedir}/Resources/Dependencies"
+      done
+   fi
+} | sort -u | strings -n 1) )
 
 targetroot=$root/$crossprefixdir
 if [ "$crossopts" ]
@@ -563,11 +597,16 @@ needsprocessing="yes"
 while [ $needsprocessing = "yes" ]
 do
    needsprocessing="no"
-   for dep in $hostdeps
+   for line in "${hostdeps[@]}"
    do
+      dep=$(echo "$line" | cut -d: -f1)
+      if echo "$line" | grep -q ":"
+      then dependenciesfile=$(echo "$line" | cut -d: -f2)
+      else dependenciesfile=""
+      fi
       [ -d $root/$programs/$dep ] && continue
-      echo Installing \"$dep\"...
-      load_dependency "$dep" "$hostgetclean BaseDependencies $hostdepsdownload" "$hostarch"
+      echo "Installing \"$dep\"..."
+      load_dependency "$dep" "$hostgetclean BaseDependencies $hostdepsdownload" "$hostarch" $dependenciesfile
 
       # if just loaded dependency doesn't have a Dependencies file, skip to next entry
       [ ! -e $root/$programs/$dep/Current/Resources/Dependencies ] && continue
@@ -575,26 +614,31 @@ do
       # for each program at dependencies list (no version handling)...
       for i in `cat $root/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
-         # if the program is not already at dependencies list, append it and force extra recursion
-         if [ ! "`echo $hostdeps | grep -w  $i`" ]
+         # if the program is not already in the dependencies list, append it and force extra recursion
+         if [ ! "$(echo "${hostdeps[@]}" | grep -w  $i)" ]
          then
             echo "  Adding dependency $i"
-            hostdeps="$hostdeps $i"
+            hostdeps=("${hostdeps[@]}" "$i:$root/$programs/$dep/Current/Resources/Dependencies")
             needsprocessing="yes"
          fi
       done
    done
    
-   for dep in $targetdeps
+   for line in "${targetdeps[@]}"
    do
-      [ -d $targetroot/$programs/$dep ] && continue
+      dep=$(echo "$line" | cut -d: -f1)
+      if echo "$line" | grep -q ":"
+      then dependenciesfile=$(echo "$line" | cut -d: -f2)
+      else dependenciesfile=""
+      fi
+      [ -d "$targetroot/$programs/$dep" ] && continue
       if [ "$hostarch" = "$targetarch" ]
       then echo Installing \"$dep\"...
       elif is_blacklisted $dep
       then continue
       else echo Installing \"$dep\" for $targetarch...
       fi
-      load_dependency "$dep" "$targetrepository $targetdepsdownload" "$targetarch"
+      load_dependency "$dep" "$targetrepository $targetdepsdownload" "$targetarch" $dependenciesfile
       [ ! -e $targetroot/$programs/$dep/Current/Resources/Dependencies ] && continue
 
       # FIXME: There's (almost) duplicated right above...
@@ -602,10 +646,10 @@ do
       # when I fixed a bug above and didn't catch the same error here.
       for i in `cat $targetroot/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
-         if [ ! "`echo $hostdeps | grep -w  $i`" ]
+         if [ ! "$(echo "${targetdeps[@]}" | grep -w $i)" ]
          then
             echo "  Adding dependency $i"
-            targetdeps="$targetdeps $i"
+            targetdeps=("${targetdeps[@]}" "$i:$targetroot/$programs/$dep/Current/Resources/Dependencies")
             needsprocessing="yes"
          fi
       done
