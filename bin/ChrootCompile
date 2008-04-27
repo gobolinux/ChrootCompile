@@ -801,6 +801,8 @@ function check_dependencies() {
 # disabled for now
 # check_dependencies
 
+eval "$(cat $root/$goboPrograms/*/Current/Resources/Environment)"
+
 echo "ChrootCompile: Will run Compile..."
 unset failed
 in_chroot Compile --batch --no-web --no-sign --no-postinstall $verbose $crossopts $name $version || failed=yes
