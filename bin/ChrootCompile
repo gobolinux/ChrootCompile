@@ -446,13 +446,19 @@ function filter_dir() {
 function get_package_for() {
    local dep="$1"
    local repositories="$2"
+   local dependenciesfile="$3"
    local pkg=
    for repo in $repositories
    do
-      [ `ls $repo/$dep--* 2> /dev/null | wc -l` -gt 1 ] && {
-         Die "More than one entry for $dep in $repo/ directory."
-      } || true
-      pkg=`ls $repo/$dep--* 2> /dev/null || true`
+      if [ "$dependenciesfile" ]
+      then
+         pkg=$(FindDependencies --repository=local-dir:"$repo" --dependency="$dep" "$dependenciesfile")
+      else
+         [ `ls $repo/$dep--* 2> /dev/null | wc -l` -gt 1 ] && {
+            Die "More than one entry for $dep in $repo/ directory."
+         } || true
+         pkg=`ls $repo/$dep--* 2> /dev/null || true`
+      fi
       [ "$pkg" ] && break
    done
    echo "$pkg"
@@ -538,13 +544,10 @@ function load_dependency() {
          Die "Dependency $dep could not be found."
       fi
    else
-      local pkg=`get_package_for "$dep" "$repositories"`
+      local pkg=$(get_package_for "$dep" "$repositories" "$dependenciesfile")
 	  local depsdir="$(echo $repositories | awk {'print $NF'})"
-      if [ ! "$pkg" -a ! -z "$dependenciesfile" ]
-      then
-         [ ! "$noweb" ] && pkg=`download_dependency "$dep" "$depsdir" "$dependenciesfile"`
-         [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency "$dep" "$dependenciesfile" && pkg=`get_package_for "$dep" "$putclean"`
-      fi
+      [ ! "$pkg" -a ! "$noweb" ] && pkg=$(download_dependency "$dep" "$depsdir" "$dependenciesfile")
+      [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency "$dep" "$dependenciesfile" && pkg=$(get_package_for "$dep" "$putclean" "$dependenciesfile")
       [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
       unpacked=`unpack_package "$pkg" "$dep" "$arch"`
    fi
