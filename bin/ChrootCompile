@@ -174,6 +174,7 @@ base_dependencies=(
     "Mtail"      # needed by Scripts
     "BinUtils"   # needed by GCC (as)
     "GCC"
+    "Procps"     # needed by Scripts (ps)
     "Sudo"       # needed by Scripts
     "Shadow"     # needed by Scripts (Functions/Requirements)
     "Make"       # needed by Compile
