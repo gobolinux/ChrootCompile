@@ -806,6 +806,11 @@ function check_dependencies() {
 # check_dependencies
 
 eval "$(cat $root/$goboPrograms/*/Current/Resources/Environment)"
+if [ -e "$root/$goboExecutables/gdk-pixbuf-query-loaders" ]
+then
+   loadersfile="${root}/${goboSettings}/gtk-2.0/gdk-pixbuf.loaders"
+   in_chroot gdk-pixbuf-query-loaders | $sudo_exec dd of=${loadersfile} 2> /dev/null
+fi
 
 echo "ChrootCompile: Will run Compile..."
 unset failed
