@@ -501,9 +501,9 @@ function download_dependency() {
    local dependenciesfile="$3"
    local pkg=$(FindDependencies --repository=package-store --dependency="$depname" "$dependenciesfile")
    [ "$pkg" ] && wget "$pkg" || return
-   mv "$(basename "$pkg")" "$depsdir"
-   pkg=`ls $depsdir/$dep--* 2> /dev/null || true`
-   echo "$pkg"
+   local pkgname="$(basename $pkg)"
+   mv "$pkgname" "$depsdir"
+   echo "$depsdir/$pkgname"
 }
 
 function compile_dependency() {
