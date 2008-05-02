@@ -713,8 +713,8 @@ ln -nfs /$programs/Sudo/Settings/sudoers $root/$settingsdir/sudoers
 touch $root/$settingsdir/fstab
 
 # This should limit network access inside the chroot
-cp /etc/resolv.conf $root/$settingsdir/resolv.conf
-cp /etc/hosts $root/$settingsdir/hosts
+#cp /etc/resolv.conf $root/$settingsdir/resolv.conf
+#cp /etc/hosts $root/$settingsdir/hosts
 
 #############################################################################
 # Binding /dev, /proc and ./Archives inside root directory
