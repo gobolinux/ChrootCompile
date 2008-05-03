@@ -619,7 +619,7 @@ do
       for i in `cat $root/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
          # if the program is not already in the dependencies list, append it and force extra recursion
-         if [ ! "$(echo "${hostdeps[@]}" | grep -w ' $i ')" ]
+         if [ ! "$(echo "${hostdeps[*]}" | grep \ $i)" ]
          then
             echo "  Adding dependency $i"
             hostdeps=("${hostdeps[@]}" "$i:$root/$programs/$dep/Current/Resources/Dependencies")
