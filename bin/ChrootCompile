@@ -149,44 +149,6 @@ fi
 # Which packages are required to run Compile
 #############################################################################
 base_dependencies=(
-    "Linux-Headers" # needed to bootstrap Glibc
-    "Gawk"       # needed by Compile and to bootstrap Glibc
-    "Glibc"
-    "Ncurses"    # needed by Bash
-    "Readline"   # needed by Bash
-    "Bash"
-    "CoreUtils"  # needed by Scripts (cp...)
-    "Sed"        # needed by Scripts
-    "PCRE"       # needed by Grep
-    "Grep"       # needed by Scripts
-    "Python"     # needed by Scripts
-    "FindUtils"  # needed by Compile (find)
-    "DB"         # needed by Perl on 013
-    "Bzip2"      # needed by Scripts
-    "Gzip"       # needed by Scripts
-    "Tar"        # needed by Scripts
-    "Unzip"      # needed by Scripts
-    "LZMA-Utils" # needed by Scripts
-    "Perl"       # needed by Scripts
-    "ZLib"       # needed by File
-    "File"       # needed by Scripts
-    "MkTemp"     # needed by Scripts
-    "Mtail"      # needed by Scripts
-    "BinUtils"   # needed by GCC (as)
-    "GCC"
-    "Procps"     # needed by Scripts (ps)
-    "Sudo"       # needed by Scripts
-    "Shadow"     # needed by Scripts (Functions/Requirements)
-    "Make"       # needed by Compile
-    "Patch"      # needed by Compile
-    "E2FSProgs"  # needed by Util-Linux (libblkid.so)
-    "Util-Linux" # needed by Compile (mount)
-    "DiffUtils"  # needed by Compile (diff)
-    "Texinfo"    # needed by packages that generate info pages (makeinfo)
-    "Udev"       # needed when using a FUSE based unionfs implementation
-    "Fuse"       # needed by UnionFS-Fuse
-    "UnionFS-Fuse"
-    "Scripts"
     "Compile"
 )
 
