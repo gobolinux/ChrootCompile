@@ -805,8 +805,11 @@ function check_dependencies() {
 
 # disabled for now
 # check_dependencies
+while read line
+do
+   eval "${line}"
+done < <(cat "$root/$goboPrograms"/*/Current/Resources/Environment)
 
-eval "$(cat $root/$goboPrograms/*/Current/Resources/Environment)"
 if [ -e "$root/$goboExecutables/gdk-pixbuf-query-loaders" ]
 then
    loadersfile="${root}/${goboSettings}/gtk-2.0/gdk-pixbuf.loaders"
