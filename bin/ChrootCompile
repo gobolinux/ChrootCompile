@@ -149,6 +149,7 @@ fi
 # Which packages are required to run Compile
 #############################################################################
 base_dependencies=(
+    "Linux-Headers"
     "Compile"
 )
 
@@ -405,6 +406,14 @@ function filter_dir() {
    grep -v \/Settings\/ | grep -v \/Variable\/ | grep -v \/Current\/
 }
 
+function extract_version() {
+   echo "$1" | sed -e 's,\(.*\)--\(.*\)--\(.*\),\2,g' -e 's,\(.*\)-r\(.*\),\1,g'
+}
+
+function extract_revision() {
+   echo "$1" | sed -e 's,\(.*\)--\(.*\)--\(.*\),\2,g' -e 's,\(.*\)-r\(.*\),r\2,g'
+}
+
 function get_package_for() {
    local dep="$1"
    local repositories="$2"
@@ -431,29 +440,29 @@ function unpack_package() {
    local dep="$2"
    local arch="$3"
 
-   packagemd5=`md5sum $pkg`
+   local md5file="`basename $pkg`.md5"
+   local packagemd5=`md5sum $pkg | cut -d" " -f1`
+   local packageversion=`extract_version $md5file`
 
-   # This seems to be broken, as $repo isn't being set here
-   [ `ls $repo/$dep 2> /dev/null | filter_dir | wc -l` -gt 1 ] && rm -rf "Unpacked/$arch/$dep" || true
-
-   if [ "`cat Unpacked/$arch/_Checksums/$dep 2> /dev/null`" !=  "$packagemd5" ]
+   if [ "`cat Unpacked/$arch/_Checksums/$md5file 2> /dev/null | cut -d" " -f1 `" !=  "$packagemd5" ]
    then
       # We may enter here even if "Unpacked/$arch/$dep" does not exists. Notice the '-f' of rm.
       # cleanup old md5 file
-      rm -f Unpacked/$arch/_Checksums/$dep
+      rm -f Unpacked/$arch/_Checksums/$md5file
       # remove the installed package: $package was updated 
-      rm -rf "Unpacked/$arch/$dep"
+      rm -rf "Unpacked/$arch/$dep/$packageversion"
+      Quiet rmdir --ignore-fail-on-non-empty "Unpacked/$arch/$dep"
    fi
 
-   unpacked=`ls -d Unpacked/$arch/$dep/* 2> /dev/null | filter_dir || true`
+   local unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir || true`
    if [ ! "$unpacked" ]
    then
       echo "Unpacking $pkg..." >&2
       tar xfj "$pkg" -C Unpacked/$arch
-      unpacked=`ls -d Unpacked/$arch/$dep/* 2> /dev/null | filter_dir`
+      unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir`
       [ "$unpacked" ] || Die "Error unpacking $pkg"
    fi
-   echo "$packagemd5" > Unpacked/$arch/_Checksums/$dep
+   echo "$packagemd5" > Unpacked/$arch/_Checksums/$md5file
    echo "$unpacked"
 }
 
