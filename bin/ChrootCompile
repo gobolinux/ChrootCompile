@@ -414,7 +414,7 @@ function get_package_for() {
    do
       if [ "$dependenciesfile" ]
       then
-         pkg=$(FindDependencies --repository=local-dir:"$repo" --dependency="$dep" "$dependenciesfile")
+         pkg=$(FindDependencies --quiet --repository=local-dir:"$repo" --dependency="$dep" "$dependenciesfile")
       else
          [ `ls $repo/$dep--* 2> /dev/null | wc -l` -gt 1 ] && {
             Die "More than one entry for $dep in $repo/ directory."
@@ -461,7 +461,7 @@ function download_dependency() {
    local depname="$1"
    local depsdir="$2"
    local dependenciesfile="$3"
-   local pkg=$(FindDependencies --repository=package-store --dependency="$depname" "$dependenciesfile")
+   local pkg=$(FindDependencies --quiet --repository=package-store --dependency="$depname" "$dependenciesfile")
    [ "$pkg" ] && wget "$pkg" || return
    local pkgname="$(basename $pkg)"
    mv "$pkgname" "$depsdir"
@@ -473,7 +473,7 @@ function compile_dependency() {
    local depname="$1"
    local dependenciesfile="$2"
    local localrecipe=$(GetRecipe --no-web "$depname")  # XXX: we don't check versions/ranges here yet
-   local remoterecipe=$(FindDependencies --repository=recipe-store --dependency="$depname" "$dependenciesfile")
+   local remoterecipe=$(FindDependencies --quiet --repository=recipe-store --dependency="$depname" "$dependenciesfile")
    if [ "$remoterecipe" -a "$localrecipe" ]
    then
       latestrecipe=$(GuessLatest $(basename "$localrecipe") $(basename "$remoterecipe"))
