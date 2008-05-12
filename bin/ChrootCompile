@@ -202,7 +202,7 @@ function locate_recipe() {
 
 name=$(GuessProgramCase ${name})
 if [ "$localrepository" ]
-then trydirs=(${compileLocalRecipesDir} "${compileRecipeDirs[@]}" ${compileGetRecipeDir})
+then trydirs=("${compileRecipeDirs[@]}" ${compileGetRecipeDir})
 else trydirs=(Recipes)
 fi
 
