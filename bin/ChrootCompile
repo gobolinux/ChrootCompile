@@ -200,26 +200,28 @@ function locate_recipe() {
    done
 }
 
-name=$(GuessProgramCase ${name})
+function get_recipe_by_name() {
+    locate_recipe
+    if [ ! "$noweb" -a ! "$recipedir" -a "$localrepository" ]
+    then
+       GetRecipe $name $version && locate_recipe
+    fi
+}
+
 if [ "$localrepository" ]
 then trydirs=("${compileRecipeDirs[@]}" ${compileGetRecipeDir})
 else trydirs=(Recipes)
 fi
-
 if [ "$userevisionstree" ]
 then trydirs=(${compileSubversionLocalRevisions} "${trydirs[@]}")
 fi
 
-locate_recipe
-
-if [ ! "$noweb" -a ! "$recipedir" -a "$localrepository" ]
+get_recipe_by_name
+if [ ! "$recipedir" ]
 then
-   GetRecipe $name $version && locate_recipe
-fi
-
-if ! [ "$recipedir" ]
-then
-   Die "Could not find recipe for $name $version"
+   name=$(GuessProgramCase ${name})
+   get_recipe_by_name
+   [ ! "$recipedir" ] && Die "Could not find recipe for $name $version"
 fi
 
 Log_Normal "ChrootCompile: Compiling $name $version..."
