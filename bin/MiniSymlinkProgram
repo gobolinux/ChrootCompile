@@ -48,13 +48,24 @@ fi
 
 [ "$verbose" ] && echo " MiniSymlinkProgram: Linking ${full_path} inside ${gobolinks}" 1>&2
 
-export verboseFD=100
-export normalFD=101
-export terseFD=102
-export errorFD=103
-export debugFD=104
-export logFD=105
-export questionFD=106
+if [ "$verbose" ]
+then
+   export verboseFD=100
+   export normalFD=101
+   export terseFD=102
+   export errorFD=103
+   export debugFD=104
+   export logFD=105
+   export questionFD=106
+else
+   export verboseFD=1
+   export normalFD=1
+   export terseFD=1
+   export errorFD=1
+   export debugFD=1
+   export logFD=1
+   export questionFD=1
+fi
 eval "exec $verboseFD>/dev/null"
 eval "exec $normalFD>/dev/null"
 eval "exec $terseFD<&2"
@@ -66,7 +77,10 @@ function do_link() {
    if [ -d "$root/$1" ]
    then
       cd $root/$2
-      goboPrefix=$root goboPrograms=$root/Programs LinkOrExpandAll $root/$1 --relative $alwaysexpand
+      if [ "$verbose" ]
+      then goboPrefix=$root goboPrograms=$root/Programs LinkOrExpandAll $root/$1 --relative $alwaysexpand
+      else goboPrefix=$root goboPrograms=$root/Programs LinkOrExpandAll $root/$1 --relative $alwaysexpand &> /dev/null
+      fi
       cd - &> /dev/null
    fi
 }
