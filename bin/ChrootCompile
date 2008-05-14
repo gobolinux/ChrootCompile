@@ -132,11 +132,7 @@ then
     if [ ! -z "`ls`" ]
     then Die "You need to create a directory in which you should run ChrootCompile, where it will store its data files and create its chroot jails. Create an empty dir and run ChrootCompile from there."
     fi
-    if [ "$chrootCompileDir" ]
-    then dirname="$chrootCompileDir"
-    else dirname="$PWD"
-    fi
-    Log_Normal "No ChrootCompile environment found in $dirname. Setting things up..."
+    Log_Normal "No ChrootCompile environment found in $PWD. Setting things up..."
     SetupChrootEnv
     [ -z "$(Arg 1)" ] && exit 0
 fi
@@ -229,12 +225,12 @@ Log_Normal "ChrootCompile: Compiling $name $version..."
 #############################################################################
 # Preparing stub root directory
 #############################################################################
-root=$PWD/Area-$name-$version
-hostgetclean=Clean/$hostarch
-targetgetclean=Clean/$targetarch
-putclean=Clean/$targetarch
-hostdepsdownload=Downloaded/$hostarch
-targetdepsdownload=Downloaded/$targetarch
+root=${PWD}/Area-$name-$version
+hostgetclean=${PWD}/Clean/$hostarch
+targetgetclean=${PWD}/Clean/$targetarch
+putclean=${PWD}/Clean/$targetarch
+hostdepsdownload=${PWD}/Downloaded/$hostarch
+targetdepsdownload=${PWD}/Downloaded/$targetarch
 
 mkdir -p $hostgetclean
 mkdir -p $targetgetclean
