@@ -27,7 +27,11 @@ Parse_Conf ChrootCompile.conf
 
 Boolean "no-web" && noweb="--no-web"
 Boolean "no-recursive" && norecursive="--no-recursive"
-Entry "use-directory" && usedirectory="$(Entry "use-directory")"
+if [ -n "$(Entry "use-directory")" ]
+then chrootCompileDir="$(Entry "use-directory")"
+else [ -z "$chrootCompileDir" ] && chrootCompileDir="$PWD"
+fi
+
 if [ "$(Arg 1)" ]
 then
    listfile="$(Arg 1)"
@@ -47,7 +51,7 @@ function cleanup() {
    ! Boolean "no-sign" && [ ! -z "${succeededapps}" ] && {
    for app in ${succeededapps[@]}
    do
-      SignProgram Clean/i686/$app--i686.tar.bz2
+      SignProgram "$chrootCompileDir"/Clean/i686/$app--i686.tar.bz2
    done
    }
    # Restore stdin from fd 6
@@ -78,8 +82,9 @@ while read i; do
       [ -n "${recipe}" ] && name=$(Get_Token "${recipe}" "/" "-2")
       [ -n "${recipe}" ] && versionandrevision=$(Get_Token "${recipe}" "/" "-1")
    fi
+   [ -z "${recipe}" ] && Ask_Continue "No recipe for $name could be found. Proceed to next program?" 0<&6
 
-   if Quiet ls Clean/i686/${name}--${versionandrevision}* && ! Boolean "force"
+   if Quiet ls "$chrootCompileDir"/Clean/i686/${name}--${versionandrevision}* && ! Boolean "force"
    then 
       echo "Skipping ${name} ($(ls Clean/i686/${name}--${versionandrevision}*))"
       continue
@@ -87,7 +92,7 @@ while read i; do
 
    echo "Processing ${name} ${versionandrevision}..."
    Boolean "skip-revision" && recipe=$(GetRecipe ${name} ${version})
-   time nice -20 ChrootCompile --local-repository --no-sign ${noweb:+${noweb}} ${norecursive:+${norecursive}} ${usedirectory:+--use-directory="${usedirectory}"} ${recipe} 0<&6
+   time nice -20 ChrootCompile --local-repository --no-sign ${noweb:+${noweb}} ${norecursive:+${norecursive}} --use-directory="$chrootCompileDir" ${recipe} 0<&6
    if [ $? -gt 0 ]
    then
       echo -en "\007"; 
