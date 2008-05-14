@@ -398,7 +398,7 @@ done
 #############################################################################
 # Installing base packages inside root directory
 #############################################################################
-Log_Normal "ChrootCompile: Installing base packages inside $root..."
+Log_Normal "Installing base packages inside $root..."
 
 function filter_dir() {
    grep -v \/Settings\/ | grep -v \/Variable\/ | grep -v \/Current\/
@@ -455,7 +455,7 @@ function unpack_package() {
    local unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir || true`
    if [ ! "$unpacked" ]
    then
-      echo "Unpacking $pkg..." >&2
+      Log_Normal "Unpacking $pkg..."
       tar xfj "$pkg" -C Unpacked/$arch
       unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir`
       [ "$unpacked" ] || Die "Error unpacking $pkg"
@@ -514,7 +514,7 @@ function load_dependency() {
       fi
    else
       local pkg=$(get_package_for "$dep" "$repositories" "$dependenciesfile")
-	  local depsdir="$(echo $repositories | awk {'print $NF'})"
+      local depsdir="$(echo $repositories | awk {'print $NF'})"
       [ ! "$pkg" -a ! "$noweb" ] && pkg=$(download_dependency "$dep" "$depsdir" "$dependenciesfile")
       [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency "$dep" "$dependenciesfile" && pkg=$(get_package_for "$dep" "$putclean" "$dependenciesfile")
       [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
@@ -578,7 +578,7 @@ do
       else dependenciesfile=""
       fi
       [ -d $root/$programs/$dep ] && continue
-      echo "Installing \"$dep\"..."
+      Log_Normal "Installing \"$dep\"..."
       load_dependency "$dep" "$hostgetclean BaseDependencies $hostdepsdownload" "$hostarch" $dependenciesfile
 
       # if just loaded dependency doesn't have a Dependencies file, skip to next entry
@@ -606,10 +606,10 @@ do
       fi
       [ -d "$targetroot/$programs/$dep" ] && continue
       if [ "$hostarch" = "$targetarch" ]
-      then echo Installing \"$dep\"...
+      then Log_Normal Installing \"$dep\"...
       elif is_blacklisted $dep
       then continue
-      else echo Installing \"$dep\" for $targetarch...
+      else Log_Normal "Installing \"$dep\" for $targetarch..."
       fi
       load_dependency "$dep" "$targetrepository $targetdepsdownload" "$targetarch" $dependenciesfile
       [ ! -e $targetroot/$programs/$dep/Current/Resources/Dependencies ] && continue
@@ -621,7 +621,7 @@ do
       do
          if [ -z "$(echo "${targetdeps[@]}" | grep " ${i}[ |:]")" ]
          then
-            echo "  Adding dependency $i"
+            Log_Normal "  Adding dependency $i"
             targetdeps=("${targetdeps[@]}" "$i:$targetroot/$programs/$dep/Current/Resources/Dependencies")
             needsprocessing="yes"
          fi
@@ -633,12 +633,12 @@ done
 # Creating files at $root/System/Settings/ 
 # => passwd, group, sudoers, resolv.conf, hosts, fstab
 #############################################################################
-[ "$verbose" ] && echo "ChrootCompile: Creating files at /System/Settings..."
+Log_Verbose "ChrootCompile: Creating files at /System/Settings..."
 
 function sudo_rm_if_e() {
    if [ -e "$1" ]
    then
-      [ "$verbose" ] && echo "ChrootCompile: removing $1..."
+      Log_Verbose "ChrootCompile: removing $1..."
       $sudo_exec rm -f "$1"
    else
       return 0
@@ -728,7 +728,7 @@ function in_chroot() {
    $sudo_exec env SUDO_OK=1 chroot $root "$@"
 }
 
-[ "$verbose" ] && echo "ChrootCompile: Will run ldconfig..."
+Log_Verbose "ChrootCompile: Will run ldconfig..."
 in_chroot ldconfig
 
 if [ -e Directories.conf ]
@@ -750,7 +750,7 @@ $sudo_exec bash -c "echo 'defaultRepositories=( local_package )' > $root/$progra
 $sudo_exec bash -c "echo 'defaultLocalPackagesPaths=( /Depot/$targetgetclean ; )' >> $root/$programs/Scripts/Settings/Scripts/GetAvailable.conf"
 
 function check_dependencies() {
-   [ "$verbose" ] && echo "ChrootCompile: Checking dependencies..."
+   Log_Verbose "ChrootCompile: Checking dependencies..."
    
    in_chroot CheckDependencies --no-web --add-self=never --mode=missing "$name" "$version" recipe | while read depnam depver deptyp depurl
    do
@@ -785,7 +785,7 @@ then
    in_chroot gdk-pixbuf-query-loaders | $sudo_exec dd of=${loadersfile} 2> /dev/null
 fi
 
-echo "ChrootCompile: Will run Compile..."
+Log_Normal "ChrootCompile: Will run Compile..."
 unset failed
 in_chroot Compile --batch --no-web --no-sign --no-postinstall $verbose $crossopts $name $version || failed=yes
 if [ "$failed" ]
@@ -793,7 +793,7 @@ then
    if [ ! "$nodebug" ]
    then
       echo -en "\007"    
-      echo "Compilation failed, invoking bash for debugging purposes."
+      Log_Terse "Compilation failed, invoking bash for debugging purposes."
       in_chroot /bin/bash
    fi
    Die "Finished with errors."
