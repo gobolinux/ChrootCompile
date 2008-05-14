@@ -588,7 +588,7 @@ do
       for i in `cat $root/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
          # if the program is not already in the dependencies list, append it and force extra recursion
-         if [ ! "$(echo "${hostdeps[*]}" | grep \ $i)" ]
+         if [ -z "$(echo "${hostdeps[*]}" | grep " ${i}[ |:]")" ]
          then
             echo "  Adding dependency $i"
             hostdeps=("${hostdeps[@]}" "$i:$root/$programs/$dep/Current/Resources/Dependencies")
@@ -619,7 +619,7 @@ do
       # when I fixed a bug above and didn't catch the same error here.
       for i in `cat $targetroot/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
       do
-         if [ ! "$(echo "${targetdeps[@]}" | grep -w $i)" ]
+         if [ -z "$(echo "${targetdeps[@]}" | grep " ${i}[ |:]")" ]
          then
             echo "  Adding dependency $i"
             targetdeps=("${targetdeps[@]}" "$i:$targetroot/$programs/$dep/Current/Resources/Dependencies")
