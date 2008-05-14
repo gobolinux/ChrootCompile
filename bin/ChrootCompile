@@ -590,7 +590,7 @@ do
          # if the program is not already in the dependencies list, append it and force extra recursion
          if [ -z "$(echo "${hostdeps[*]}" | grep " ${i}[ |:]")" ]
          then
-            echo "  Adding dependency $i"
+            Log_Normal "  Adding dependency $i"
             hostdeps=("${hostdeps[@]}" "$i:$root/$programs/$dep/Current/Resources/Dependencies")
             needsprocessing="yes"
          fi
