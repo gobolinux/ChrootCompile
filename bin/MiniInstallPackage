@@ -35,19 +35,30 @@ then
    shift
 fi
 
+#echo "MiniInstall: $1" >&2
+#echo $(readlink -f -v $1)
 if [ -d "$1" ] 
 then
    dir=`readlink -f "$1"`
+#   echo Dir: "$dir" >&2
    version=$(basename $dir)
+#   echo Version: $version >&2
    name=$(basename `dirname $dir`)
+#   echo Name: $name >&2
    unpacked=$(dirname $dir)
 else
    package=`readlink -f "$1"`
+#   echo Package: $package >&2
    base=$(basename $package)
+#   echo Base: $base >&2
    name=${base%%--*}
+#   echo Name: $name >&2
    version=${base#*--}
+#   echo Version: $version >&2
    version=${version%%--*}
+#   echo Version 2: $version >&2
    unpacked=$(dirname $package)/$name
+#   echo Unpacked: $unpacked >&2
    if ! [ -d "$unpacked/$version" ]
    then
       pushd $(dirname $package) &> /dev/null

@@ -458,7 +458,7 @@ function unpack_package() {
       Log_Normal "Unpacking $pkg..."
       tar xfj "$pkg" -C Unpacked/$arch
       unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir`
-      [ "$unpacked" ] || Die "Error unpacking $pkg"
+      [ "$unpacked" ] || exit 1
    fi
    echo "$packagemd5" > Unpacked/$arch/_Checksums/$md5file
    echo "$unpacked"
@@ -518,7 +518,7 @@ function load_dependency() {
       [ ! "$pkg" -a ! "$noweb" ] && pkg=$(download_dependency "$dep" "$depsdir" "$dependenciesfile")
       [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency "$dep" "$dependenciesfile" && pkg=$(get_package_for "$dep" "$putclean" "$dependenciesfile")
       [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
-      unpacked=`unpack_package "$pkg" "$dep" "$arch"`
+      unpacked=`unpack_package "$pkg" "$dep" "$arch"` || Die "Error unpacking $pkg"
    fi
    if [ $dep = $name ]
    then realcopy="--real-copy"
