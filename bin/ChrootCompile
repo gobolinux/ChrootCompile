@@ -339,10 +339,11 @@ create_root $root
 # Copying recipes to root directory
 #############################################################################
 
-if [ -d Recipes ]
+if ! Boolean "local-repository" && [ -d Recipes ]
 then
    cp -rL Recipes $root/Files/Compile
-else
+elif ! Boolean "local-repository"
+then
    Log_Terse "Warning, ./Recipes not found. Skipping copy of recipes inside $root"
    Log_Terse "Assuming use of local repository from host's ${compileDir}."
    localrepository=yes
