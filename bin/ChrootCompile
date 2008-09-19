@@ -267,8 +267,10 @@ function cleanup() {
    for line in "${targetdeps[@]}" "${hostdeps[@]}" 
    do
       local dep=$(echo "$line" | cut -d: -f1)
-      local depversion="$(ls $root/Programs/$dep/ 2> /dev/null | grep -v "Settings\|Current")"
-      $unmount "${root}Programs/$dep/$depversion"
+      for depversion in $(ls $root/Programs/$dep/ 2> /dev/null | grep -v "Settings\|Current")
+      do
+         $unmount "${root}Programs/$dep/$depversion"
+      done
    done
    if [ "$crossopts" ]
    then
@@ -574,6 +576,12 @@ do
    for line in "${hostdeps[@]}"
    do
       dep=$(echo "$line" | cut -d: -f1)
+      if [ "$dep" = "Linux" ]
+      then
+         Log_Normal "Skipping \"$dep\"..."
+         continue
+      fi
+       
       if echo "$line" | grep -q ":"
       then dependenciesfile=$(echo "$line" | cut -d: -f2)
       else dependenciesfile=""
@@ -605,6 +613,12 @@ do
       then dependenciesfile=$(echo "$line" | cut -d: -f2)
       else dependenciesfile=""
       fi
+      if [ "$dep" = "Linux" ]
+      then
+         Log_Normal "Skipping \"$dep\"..."
+         continue
+      fi
+
       [ -d "$targetroot/$programs/$dep" ] && continue
       if [ "$hostarch" = "$targetarch" ]
       then Log_Normal Installing \"$dep\"...
@@ -778,7 +792,7 @@ function check_dependencies() {
 while read line
 do
    eval "${line}"
-done < <(cat "$root/$goboPrograms"/*/Current/Resources/Environment)
+done < <(cat "$root/$programs"/*/Current/Resources/Environment)
 
 if [ -e "$root/$goboExecutables/gdk-pixbuf-query-loaders" ]
 then
@@ -788,6 +802,11 @@ fi
 
 Log_Normal "ChrootCompile: Will run Compile..."
 unset failed
+
+unset goboPrefix
+unset TMPDIR
+source GoboPath
+
 in_chroot Compile --batch --no-web --no-sign --no-postinstall $verbose $crossopts $name $version || failed=yes
 if [ "$failed" ]
 then
