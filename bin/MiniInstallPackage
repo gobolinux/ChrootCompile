@@ -93,6 +93,30 @@ then
    [ "$verbose" ] && echo "MiniInstallPackage: Copying default settings for $name $version"
    cp -R "$dsettings" "$name/Settings"
 fi
+
+xmlcatfile="$name/$version/Resources/XmlCatalogData"
+if [ -e "$xmlcatfile" ]
+then
+   [ "$verbose" ] && echo "MiniInstallPackage: Filling XML catalog for $name $version"
+   target="$goboPrograms/$name/$version"
+   OLDIFS="$IFS"
+   export IFS=";"
+   while read type url repl catalog
+   do
+      [ "$type" ] || continue
+      eval repl="$(echo "$repl")"
+      eval catalog="${root}$(echo $catalog)"
+      catdir="$(dirname "${catalog}")"
+      if ! [ -e "$catdir" ]
+      then
+         mkdir -p "${catdir}" || echo "couldn't create $(dirname "${catalog}")"
+         #chown "$(whoami)" "${catdir}"
+      fi
+      [ -e "$catalog" ] || real_xmlcatalog --noout --create "${catalog}"
+      real_xmlcatalog --noout --add ${type} "${url}" "${repl}" "${catalog}"
+   done < "$xmlcatfile"
+   export IFS="$OLDIFS"
+fi
 popd &> /dev/null
 
 MiniSymlinkProgram $verbose $usenewnames $programs/$name/$version $root $crossprefixdir 2>&1 | grep -v "/CVS/"
