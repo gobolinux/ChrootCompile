@@ -7,6 +7,7 @@ source ScriptFunctions
 Import GoboLinux
 Import OptionParser
 Import Bootstrap
+Import Archive
 
 #############################################################################
 # Setting options
@@ -102,11 +103,21 @@ then
        arm*) recipesubdir=arm ;;
        *)    recipesubdir="$cross_uname_m"
     esac
+
+    for c in ${cross_blacklist}
+    do
+        [ -n "${c}" ] && blacklist="${blacklist:+${blacklist},}${c}"
+    done
 else
     case "$hostarch" in
        i686|i585|i486|i386) recipesubdir=i686 ;;
        *)                   recipesubdir="$hostarch"
     esac
+    
+    for h in ${host_blacklist}
+    do
+        [ -n "${h}" ] && blacklist="${blacklist:+${blacklist},}${h}"
+    done
 fi
 
 if [ "$goboPrefix" ]
@@ -147,10 +158,6 @@ fi
 base_dependencies=(
     "Linux-Headers"
     "Compile"
-)
-
-cross_blacklist=(
-    "GCC"
 )
 
 export LANG=C
@@ -264,14 +271,10 @@ function cleanup() {
    fi
 
    # umount batch
-   for line in "${targetdeps[@]}" "${hostdeps[@]}" 
+   while read from mountpoint type options
    do
-      local dep=$(echo "$line" | cut -d: -f1)
-      for depversion in $(ls $root/Programs/$dep/ 2> /dev/null | grep -v "Settings\|Current")
-      do
-         $unmount "${root}Programs/$dep/$depversion"
-      done
-   done
+      $unmount ${mountpoint}
+   done < <(cat /proc/mounts | grep -- "${root}")
    if [ "$crossopts" ]
    then
       [ -d "$cross_prefix_dir/$goboModules" ] && $unmount "${root}$cross_prefix_dir/$goboModules"
@@ -415,234 +418,119 @@ function extract_revision() {
    echo "$1" | sed -e 's,\(.*\)--\(.*\)--\(.*\),\2,g' -e 's,\(.*\)-r\(.*\),r\2,g'
 }
 
-function get_package_for() {
-   local dep="$1"
-   local repositories="$2"
-   local dependenciesfile="$3"
-   local pkg=
-   for repo in $repositories
-   do
-      if [ "$dependenciesfile" ]
-      then
-         pkg=$(FindDependencies --quiet --repository=local-dir:"$repo" --dependency="$dep" "$dependenciesfile")
-      else
-         [ `ls $repo/$dep--* 2> /dev/null | wc -l` -gt 1 ] && {
-            Die "More than one entry for $dep in $repo/ directory."
-         } || true
-         pkg=`ls $repo/$dep--* 2> /dev/null || true`
-      fi
-      [ "$pkg" ] && break
-   done
-   echo "$pkg"
-}
-
-function unpack_package() {
-   local pkg="$1"
-   local dep="$2"
-   local arch="$3"
-
-   local md5file="`basename $pkg`.md5"
-   local packagemd5=`md5sum $pkg | cut -d" " -f1`
-   local packageversion=`extract_version $md5file`
-
-   if [ "`cat Unpacked/$arch/_Checksums/$md5file 2> /dev/null | cut -d" " -f1 `" !=  "$packagemd5" ]
+fetch_dependency() {
+   local targetdir="${1}"
+   local application="${2}"
+   local version="${3}"
+   local type="${4}"
+   local uri="${5}"
+   if [ "${type}" = "recipe" -o "${type}" = "local_recipe" -a -z "${norecursive}" ]
    then
-      # We may enter here even if "Unpacked/$arch/$dep" does not exists. Notice the '-f' of rm.
-      # cleanup old md5 file
-      rm -f Unpacked/$arch/_Checksums/$md5file
-      # remove the installed package: $package was updated 
-      rm -rf "Unpacked/$arch/$dep/$packageversion"
-      Quiet rmdir --ignore-fail-on-non-empty "Unpacked/$arch/$dep"
-   fi
-
-   local unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir || true`
-   if [ ! "$unpacked" ]
+      Log_Normal "Will ChrootCompile ${application} ${version}"
+      pkg=$(ChrootCompile "${application}" "${version}")
+   elif [ "${type}" = "local_package" ]
    then
-      Log_Normal "Unpacking $pkg..."
-      tar xfj "$pkg" -C Unpacked/$arch
-      unpacked=`ls -d Unpacked/$arch/$dep/$packageversion 2> /dev/null | filter_dir`
-      [ "$unpacked" ] || exit 1
-   fi
-   echo "$packagemd5" > Unpacked/$arch/_Checksums/$md5file
-   echo "$unpacked"
-}
-
-function download_dependency() {
-   local depname="$1"
-   local depsdir="$2"
-   local dependenciesfile="$3"
-   local pkg=$(FindDependencies --quiet --repository=package-store --dependency="$depname" "$dependenciesfile")
-   [ "$pkg" ] && wget "$pkg" || return
-   local pkgname="$(basename $pkg)"
-   mv "$pkgname" "$depsdir"
-   echo "$depsdir/$pkgname"
-}
-
-function compile_dependency() {
-   local recipe=
-   local depname="$1"
-   local dependenciesfile="$2"
-   local localrecipe=$(GetRecipe --no-web "$depname")  # XXX: we don't check versions/ranges here yet
-   local remoterecipe=$(FindDependencies --quiet --repository=recipe-store --dependency="$depname" "$dependenciesfile")
-   if [ "$remoterecipe" -a "$localrecipe" ]
+      Log_Normal "Using local package ${uri}"
+      pkg="${uri}"
+   elif [ "${type}" = "official_package" ]
    then
-      latestrecipe=$(GuessLatest $(basename "$localrecipe") $(basename "$remoterecipe"))
-      if [ "$(basename $localrecipe)" == "$(basename $remoterecipe)" ]
-      then recipe="$localrecipe"
-      else echo "$latestrecipe" | grep -q "$remoterecipe" && recipe="$(GetRecipe $remoterecipe)" || recipe="$localrecipe"
-      fi
-   elif [ "$remoterecipe" ]
-   then
-      recipe="$(GetRecipe $remoterecipe)"
-   elif [ "$localrecipe" ]
-   then
-      recipe="$localrecipe"
-   fi
-   if [ "$recipe" ]
-   then ChrootCompile $parsedoptions $recipe
-   fi
-}
-
-function load_dependency() {
-   local dep="$1"
-   local repositories="$2"
-   local arch="$3"
-   local dependenciesfile="$4"
-   if [ "$local_programs" ]
-   then
-      unpacked="/Programs/$dep/Current/"
-      if [ ! -d $unpacked ]
-      then
-         Die "Dependency $dep could not be found."
-      fi
+      Log_Normal "Fetching ${uri} to ${hostdepsdownload}"
+      pushd "${hostdepsdownload}"
+      wget "${uri}"
+      Quiet popd
+      pkg="${hostdepsdownload}/$(basename "${uri}")"
    else
-      local pkg=$(get_package_for "$dep" "$repositories" "$dependenciesfile")
-      local depsdir="$(echo $repositories | awk {'print $NF'})"
-      [ ! "$pkg" -a ! "$noweb" ] && pkg=$(download_dependency "$dep" "$depsdir" "$dependenciesfile")
-      [ ! "$pkg" -a ! "$norecursive" ] && compile_dependency "$dep" "$dependenciesfile" && pkg=$(get_package_for "$dep" "$putclean" "$dependenciesfile")
-      [ ! "$pkg" ] && Die "Dependency $dep could not be found. You may need to get the package and put it at $depsdir."
-      unpacked=`unpack_package "$pkg" "$dep" "$arch"` || Die "Error unpacking $pkg"
+      Log_Terse "No package found for ${application}"
    fi
-   if [ $dep = $name ]
-   then realcopy="--real-copy"
-   else realcopy=""
-   fi
-   if [ "$arch" = "$hostarch" ]
-   then params=""
-   else params=$crossprefixdir
-   fi
-   unset usenewnames
-   Boolean "new-names" && usenewnames="--new-names"
-   $sudo_exec MiniInstallPackage $realcopy $verbose $usenewnames "$unpacked" "$root" $params
+   Log_Normal "Unpacking ${pkg} in ${targetdir}"
+   Quiet Unpack_Archive "${pkg}" "${targetdir}"
 }
 
-function is_blacklisted() {
-   for crossdep in "${cross_blacklist[@]}"
-   do
-      [ "$crossdep" = "$1" ] && return 0
-   done
-   return 1
-}
-
-hostdeps=( $({
-   echo "${base_dependencies[*]} " | tr " " "\n" 
-   if [ -e "${recipedir}/Resources/BuildDependencies" ]
+install_dependency() {
+   local targetdir="${1}"
+   local application="${2}"
+   local version="${3}"
+   local type="${4}"
+   local package="${5}"
+   
+   if [ "${type}" = "local_package" ]
    then
-      for entry in $(cut -d" " -f1 "${recipedir}/Resources/BuildDependencies" | sed '/^#.*/d')
-      do echo "$entry:${recipedir}/Resources/BuildDependencies"
-      done
+      Log_Normal "Installing $application $version in $targetdir"
+      unset usenewnames
+      Boolean "new-names" && usenewnames="--new-names"
+      $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "$root" $params
+   else
+      Log_Normal "$application wasn't found in $package"
    fi
-} | sort -u | strings -n 1) )
+}
 
-targetdeps=( $({
-   if [ -e "${recipedir}/Resources/Dependencies" ]
-   then 
-      for entry in $(cut -d" " -f1 "${recipedir}/Resources/Dependencies" | sed '/^#.*/d')
-      do echo "$entry:${recipedir}/Resources/Dependencies"
-      done
-   fi
-} | sort -u | strings -n 1) )
+Log_Normal "Fetching base dependencies for ChrootCompile"
+while read application version type uri
+do
+   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}"
+done < <(CheckDependencies --types=local_package,recipe,official_package \
+                  --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
+                  --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
+                  --no-prompt ${noweb:+--no-web} --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+
+[ -e "${recipedir}/Resources/BuildDependencies" ] && {
+   Log_Normal "Fetching build dependencies for $name $version"
+   while read application version type uri
+   do
+      fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}"
+   done < <(CheckDependencies --types=local_package,recipe,official_package \
+                  --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
+                  --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
+		  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+}
+
+Log_Normal "Fetching dependencies for $name $version"
+while read application version type uri
+do
+   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}"
+done < <(CheckDependencies --types=local_package,recipe,official_package \
+                  --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
+                  --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
+		  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+
+Log_Normal "Installing dependencies for ChrootCompile"
+while read application version type uri
+do
+   [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
+   install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}"
+done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+                  --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
+                  --no-prompt ${noweb:+--no-web} --gobo-programs="${root}/Programs" \
+		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+
+[ -e "${recipedir}/Resources/BuildDependencies" ] && {
+   Log_Normal "Installing build dependencies for $name $version"
+   while read application version type uri
+   do
+      [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
+      install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}"
+   done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+                  --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
+		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+}
+
+Log_Normal "Installing dependencies for $name $version"
+while read application version type uri
+do
+   [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
+   install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}"
+done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+                  --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
+		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
 
 targetroot=$root/$crossprefixdir
 if [ "$crossopts" ]
 then targetrepository="$targetgetclean"
 else targetrepository="$targetgetclean BaseDependencies"
 fi
-
-needsprocessing="yes" 
-while [ $needsprocessing = "yes" ]
-do
-   needsprocessing="no"
-   for line in "${hostdeps[@]}"
-   do
-      dep=$(echo "$line" | cut -d: -f1)
-      if [ "$dep" = "Linux" ]
-      then
-         Log_Normal "Skipping \"$dep\"..."
-         continue
-      fi
-       
-      if echo "$line" | grep -q ":"
-      then dependenciesfile=$(echo "$line" | cut -d: -f2)
-      else dependenciesfile=""
-      fi
-      [ -d $root/$programs/$dep ] && continue
-      Log_Normal "Installing \"$dep\"..."
-      load_dependency "$dep" "$hostgetclean BaseDependencies $hostdepsdownload" "$hostarch" $dependenciesfile
-
-      # if just loaded dependency doesn't have a Dependencies file, skip to next entry
-      [ ! -e $root/$programs/$dep/Current/Resources/Dependencies ] && continue
-      
-      # for each program at dependencies list (no version handling)...
-      for i in `cat $root/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
-      do
-         # if the program is not already in the dependencies list, append it and force extra recursion
-         if [ -z "$(echo "${hostdeps[*]}" | grep " ${i}[ |:]")" ]
-         then
-            Log_Normal "  Adding dependency $i"
-            hostdeps=("${hostdeps[@]}" "$i:$root/$programs/$dep/Current/Resources/Dependencies")
-            needsprocessing="yes"
-         fi
-      done
-   done
-   
-   for line in "${targetdeps[@]}"
-   do
-      dep=$(echo "$line" | cut -d: -f1)
-      if echo "$line" | grep -q ":"
-      then dependenciesfile=$(echo "$line" | cut -d: -f2)
-      else dependenciesfile=""
-      fi
-      if [ "$dep" = "Linux" ]
-      then
-         Log_Normal "Skipping \"$dep\"..."
-         continue
-      fi
-
-      [ -d "$targetroot/$programs/$dep" ] && continue
-      if [ "$hostarch" = "$targetarch" ]
-      then Log_Normal Installing \"$dep\"...
-      elif is_blacklisted $dep
-      then continue
-      else Log_Normal "Installing \"$dep\" for $targetarch..."
-      fi
-      load_dependency "$dep" "$targetrepository $targetdepsdownload" "$targetarch" $dependenciesfile
-      [ ! -e $targetroot/$programs/$dep/Current/Resources/Dependencies ] && continue
-
-      # FIXME: There's (almost) duplicated right above...
-      # It took me quite a while to figure out what was going on
-      # when I fixed a bug above and didn't catch the same error here.
-      for i in `cat $targetroot/$programs/$dep/Current/Resources/Dependencies | grep -v '^[ ]*#' | cut -f1 -d' '`
-      do
-         if [ -z "$(echo "${targetdeps[@]}" | grep " ${i}[ |:]")" ]
-         then
-            Log_Normal "  Adding dependency $i"
-            targetdeps=("${targetdeps[@]}" "$i:$targetroot/$programs/$dep/Current/Resources/Dependencies")
-            needsprocessing="yes"
-         fi
-      done
-   done
-done
 
 #############################################################################
 # Creating files at $root/System/Settings/ 
