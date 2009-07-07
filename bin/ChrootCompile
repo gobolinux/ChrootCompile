@@ -427,7 +427,8 @@ fetch_dependency() {
    if [ "${type}" = "recipe" -o "${type}" = "local_recipe" -a -z "${norecursive}" ]
    then
       Log_Normal "Will ChrootCompile ${application} ${version}"
-      pkg=$(ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}")
+      ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}"
+      pkg="$(ls --quoting-style=escape "$hostgetclean/${application}--${version}"*)"
    elif [ "${type}" = "local_package" ]
    then
       Log_Normal "Using local package ${uri}"
