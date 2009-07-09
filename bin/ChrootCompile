@@ -623,7 +623,7 @@ Compile --batch --no-build ${crossopts} ${name} ${version} ${noweb:+--no-web} ||
 if Boolean "new-names"
 then
    export LD_LIBRARY_PATH=/System/Index/lib
-   export PATH=$PATH:/System/Index/bin:/System/Index/sbin
+   export PATH=${PATH:+${PATH}:}/System/Index/bin:/System/Index/sbin
 else
    export LD_LIBRARY_PATH=/System/Links/Libraries
 fi
