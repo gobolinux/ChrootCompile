@@ -427,7 +427,7 @@ fetch_dependency() {
    if [ "${type}" = "recipe" -o "${type}" = "local_recipe" -a -z "${norecursive}" ]
    then
       Log_Normal "Will ChrootCompile ${application} ${version}"
-      ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}"
+      ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}" || Die "Failed building dependency ${application} ${version}"
       pkg="$(ls --quoting-style=escape "$hostgetclean/${application}--${version}"*)"
    elif [ "${type}" = "local_package" ]
    then
@@ -437,7 +437,7 @@ fetch_dependency() {
    then
       Log_Normal "Fetching ${uri} to ${hostdepsdownload}"
       pushd "${hostdepsdownload}"
-      wget "${uri}"
+      wget "${uri}" || Die "Failed fetching ${uri}"
       Quiet popd
       pkg="${hostdepsdownload}/$(basename "${uri}")"
    else
