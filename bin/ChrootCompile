@@ -521,7 +521,7 @@ done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDi
    while read application version type uri
    do
       [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
-      install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}"
+      install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}" || Die "Unable to install ${application} ${version} into ${root}"
    done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
 		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
@@ -531,7 +531,7 @@ Log_Normal "Installing dependencies for $name $version"
 while read application version type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
-   install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}"
+   install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}" || Die "Unable to install ${application} ${version} into ${root}"
 done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
 		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
