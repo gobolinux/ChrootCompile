@@ -424,8 +424,9 @@ fetch_dependency() {
    local version="${3}"
    local type="${4}"
    local uri="${5}"
-   if [ "${type}" = "recipe" -o "${type}" = "local_recipe" -a -z "${norecursive}" ]
+   if [ "${type}" = "recipe" -o "${type}" = "local_recipe" ] && [ -z "${norecursive}" ]
    then
+      echo norecursive "${norecursive}" >&2
       Log_Normal "Will ChrootCompile ${application} ${version}"
       ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}" || Die "Failed building dependency ${application} ${version}"
       pkg="$(ls --quoting-style=escape "$hostgetclean/${application}--${version}"*)"
@@ -440,11 +441,15 @@ fetch_dependency() {
       wget "${uri}" || Die "Failed fetching ${uri}"
       Quiet popd
       pkg="${hostdepsdownload}/$(basename "${uri}")"
-   else
-      Log_Terse "No package found for ${application}"
    fi
-   Log_Normal "Unpacking ${pkg} in ${targetdir}"
-   Quiet Unpack_Archive "${pkg}" "${targetdir}"
+   if [ -z "${pkg}" ]
+   then
+      Log_Terse "No package found for ${application}"
+      return 1
+   else
+      Log_Normal "Unpacking ${pkg} in ${targetdir}"
+      Quiet Unpack_Archive "${pkg}" "${targetdir}"
+   fi
 }
 
 install_dependency() {
@@ -472,7 +477,7 @@ properversion="$version"
 Log_Normal "Fetching base dependencies for ChrootCompile"
 while read application version type uri
 do
-   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}"
+   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}" || Die "Unable to fetch ${application} ${version}"
 done < <(CheckDependencies --types=local_package,recipe,official_package \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
@@ -483,7 +488,7 @@ done < <(CheckDependencies --types=local_package,recipe,official_package \
    Log_Normal "Fetching build dependencies for $name $version"
    while read application version type uri
    do
-      fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}"
+      fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}" || Die "Unable to fetch ${application} ${version}"
    done < <(CheckDependencies --types=local_package,recipe,official_package \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
@@ -494,7 +499,7 @@ done < <(CheckDependencies --types=local_package,recipe,official_package \
 Log_Normal "Fetching dependencies for $name $version"
 while read application version type uri
 do
-   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}"
+   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${application}" "${version}" "${type}" "${uri}" || Die "Unable to fetch ${application} ${version}"
 done < <(CheckDependencies --types=local_package,recipe,official_package \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
@@ -505,7 +510,7 @@ Log_Normal "Installing dependencies for ChrootCompile"
 while read application version type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
-   install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}"
+   install_dependency "${root}" "${application}" "${version}" "${type}" "${uri}" || Die "Unable to install ${application} ${version} into ${root}"
 done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
                   --no-prompt ${noweb:+--no-web} --gobo-programs="${root}/Programs" \
