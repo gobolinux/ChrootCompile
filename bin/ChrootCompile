@@ -458,6 +458,7 @@ install_dependency() {
    local version="${3}"
    local type="${4}"
    local package="${5}"
+   local res=0
    
    if [ "${type}" = "local_package" ]
    then
@@ -465,9 +466,12 @@ install_dependency() {
       unset usenewnames
       Boolean "new-names" && usenewnames="--new-names"
       $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "$root" $params
+      res=$?
    else
       Log_Normal "$application wasn't found in $package"
+      res=1
    fi
+   return $res
 }
 
 # Temporary hack until below is fixed - save $version at this point,
