@@ -119,4 +119,4 @@ then
 fi
 popd &> /dev/null
 
-MiniSymlinkProgram $verbose $usenewnames $programs/$name/$version $root $crossprefixdir 2>&1 | grep -v "/CVS/"
+MiniSymlinkProgram $verbose $usenewnames $programs/$name/$version $root $crossprefixdir 2>&1
