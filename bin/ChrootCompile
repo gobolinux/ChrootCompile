@@ -732,7 +732,7 @@ function in_target() {
 
 # FIXME: Should be based on Directories.conf
 date=`date +%Y%m%d`
-finalversion=$(echo $properversion | sed -e "s,^cvs.*,$date-CVS,1" -e "s,^svn.*,$date-SVN,1")
+finalversion=$(echo $version | sed -e "s,^cvs.*,$date-CVS,1" -e "s,^svn.*,$date-SVN,1")
 if [ "$chrootcompileMode" = "gobo" ]
 then
    package=`in_target in_chroot CreatePackage --no-sign --no-verify $name $finalversion`
