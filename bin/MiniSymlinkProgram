@@ -92,7 +92,7 @@ then
    do_link ${full_path}/Resources/Wrappers ${gobolinks}/bin
    do_link ${full_path}/lib ${gobolinks}/lib
    do_link ${full_path}/include ${gobolinks}/include
-   if [ -h ${full_path}/share ]
+   if [ -L ${root}/${full_path}/share ]
    then do_link ${full_path}/Shared ${gobolinks}/share
    else do_link ${full_path}/share  ${gobolinks}/share
    fi
