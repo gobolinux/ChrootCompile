@@ -43,7 +43,11 @@ chrootcompileMode=gobo
 Parse_Conf Compile/Compile.conf
 Parse_Conf ChrootCompile.conf
 
-Is_Entry "use-directory" && chrootCompileDir="$(Entry 'use-directory')"
+if Is_Entry "use-directory"
+then chrootCompileDir="$(Entry 'use-directory')"
+elif [ -z "$chrootCompileDir" ]
+then Die "Please specify the chrootCompileDir in $goboSettings/ChrootCompile/ChrootCompile.conf"
+fi
 
 if [ "$UID" -eq 0 ]
 then sudo_exec=
@@ -71,6 +75,17 @@ Boolean "use-tmpfs" && usetmpfs=yes
 
 unset norecursive
 Boolean "no-recursive" && norecursive=yes
+
+unset usesystemindex
+if Boolean "new-names" 
+then
+   usesystemindex=yes
+   filesdir=Data
+   depotdir=Data
+else
+   filesdir=Files
+   depotdir=Depot
+fi
 
 hostarch=`uname -m`
 case "$hostarch" in
@@ -280,18 +295,18 @@ function cleanup() {
       [ -d "$cross_prefix_dir/$goboModules" ] && $unmount "${root}$cross_prefix_dir/$goboModules"
       $unmount ${root}$crosstoolchaindir
    fi
-   $unmount ${root}Depot/$targetgetclean
-   $unmount ${root}Depot/$hostgetclean
+   $unmount ${root}$depotdir/$targetgetclean
+   $unmount ${root}$depotdir/$hostgetclean
    $unmount ${root}System/Kernel/Status
    $unmount ${root}System/Kernel/Devices
    [ "$userevisionstree" ] && $unmount "${root}$compileSubversionLocalRevisions"
    [ "$usetmpfs" ] && $unmount $(readlink -f ${root}$compileSourcesDir)
    if [ ! "$localrepository" ]
    then
-      $unmount "$root/Files/Compile/Archives"
+      $unmount "$root/$filesdir/Compile/Archives"
    else
       [ -d "$crosskerneldir" ] && $unmount "${root}$crosskerneldir"
-      $unmount "${root}Files/Compile"
+	  $unmount "${root}/$filesdir/Compile"
    fi
    rmdir Archives 2> /dev/null
    return $ret
@@ -313,15 +328,17 @@ function create_root() {
    local prefix="$2"
    local rootdir="$chrootdir/$prefix"
 
-   if Boolean "new-names"
+   if [ "$usesystemindex" ]
    then Create_Filesystem_Tree "$rootdir" "gobo" "true"
    else Create_Filesystem_Tree "$rootdir" "gobo"
    fi
 
    Create_Device_Nodes "$rootdir"
 
-   mkdir -p $rootdir/Depot/$hostgetclean
-   mkdir -p $rootdir/Depot/$targetgetclean
+   mkdir -p $rootdir/$depotdir/$hostgetclean
+   mkdir -p $rootdir/$depotdir/$targetgetclean
+   mkdir -p $rootdir/Files/Compile/{Archives,Sources,Recipes,LocalRecipes}
+   [ "$usesystemindex" ] && ln -s /Files/Compile $rootdir/Data/Compile
 
    if [ ! -z "$prefix" ]
    then
@@ -346,7 +363,7 @@ create_root $root
 
 if ! Boolean "local-repository" && [ -d Recipes ]
 then
-   cp -rL Recipes $root/Files/Compile
+   cp -rL Recipes $root/$filesdir/Compile
 elif ! Boolean "local-repository"
 then
    Log_Terse "Warning, ./Recipes not found. Skipping copy of recipes inside $root"
@@ -357,7 +374,7 @@ fi
 if [ "$localrepository" ]
 then
     Log_Normal "ChrootCompile: bind-mounting ${compileDir} inside $root"
-    $sudo_exec mount --bind ${compileDir} $root/Files/Compile
+    $sudo_exec mount --bind ${compileDir} $root/$filesdir/Compile
 
     if [ -d "$crosskerneldir" ]
     then
@@ -463,7 +480,7 @@ install_dependency() {
    then
       Log_Normal "Installing $application $version in $targetdir"
       unset usenewnames
-      Boolean "new-names" && usenewnames="--new-names"
+      [ "$usesystemindex" ] && usenewnames="--new-names"
       $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "$root" $params
       res=$?
    else
@@ -604,10 +621,10 @@ $sudo_exec mount --bind /dev $root/System/Kernel/Devices
 $sudo_exec mount --bind /proc $root/System/Kernel/Status
 
 [ -d ./Archives ] || mkdir ./Archives
-[ ! "$localrepository" ] && $sudo_exec mount --bind Archives $root/Files/Compile/Archives
+[ ! "$localrepository" ] && $sudo_exec mount --bind Archives $root/$filesdir/Compile/Archives
 
-$sudo_exec mount --bind $hostgetclean $root/Depot/$hostgetclean
-$sudo_exec mount --bind $targetgetclean $root/Depot/$targetgetclean
+$sudo_exec mount --bind $hostgetclean $root/$depotdir/$hostgetclean
+$sudo_exec mount --bind $targetgetclean $root/$depotdir/$targetgetclean
 
 if [ "$crossopts" ]
 then
@@ -628,7 +645,7 @@ Compile --batch --no-build ${crossopts} ${name} ${version} ${noweb:+--no-web} ||
 #############################################################################
 # Setting LD_LIBRARY_PATH variable which will be used on chrooted operations
 #############################################################################
-if Boolean "new-names"
+if [ "$usesystemindex" ]
 then
    export LD_LIBRARY_PATH=/System/Index/lib
    export PATH=${PATH:+${PATH}:}/System/Index/bin:/System/Index/sbin
@@ -659,7 +676,7 @@ fi
 
 # Only local packages are used to fullfil dependencies
 $sudo_exec bash -c "echo 'defaultRepositories=( local_package )' > $root/$programs/Scripts/Settings/Scripts/FindPackage.conf"
-$sudo_exec bash -c "echo 'defaultLocalPackagesPaths=( /Depot/$targetgetclean ; )' >> $root/$programs/Scripts/Settings/Scripts/GetAvailable.conf"
+$sudo_exec bash -c "echo 'defaultLocalPackagesPaths=( /$depotdir/$targetgetclean ; )' >> $root/$programs/Scripts/Settings/Scripts/GetAvailable.conf"
 
 function check_dependencies() {
    Log_Verbose "ChrootCompile: Checking dependencies..."
