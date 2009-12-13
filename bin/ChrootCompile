@@ -441,7 +441,7 @@ fetch_dependency() {
    local version="${3}"
    local type="${4}"
    local uri="${5}"
-   if [ "${type}" = "recipe" -o "${type}" = "local_recipe" ] && [ -z "${norecursive}" ]
+   if [ "${type}" = "recipe" -o "${type}" = "local_recipe" ]
    then
       Log_Normal "Will ChrootCompile ${application} ${version}"
       ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}" || Die "Failed building dependency ${application} ${version}"
@@ -494,7 +494,7 @@ Log_Normal "Fetching base dependencies for ChrootCompile"
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=local_package,recipe,official_package \
+done < <(CheckDependencies --types=local_package,${norecursive+:recipe},official_package \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
                   --no-prompt ${noweb:+--no-web} --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
@@ -505,7 +505,7 @@ done < <(CheckDependencies --types=local_package,recipe,official_package \
    while read depname depversion type uri
    do
       fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-   done < <(CheckDependencies --types=local_package,recipe,official_package \
+   done < <(CheckDependencies --types=local_package,${norecursive+:recipe},official_package \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
 		  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
@@ -516,7 +516,7 @@ Log_Normal "Fetching dependencies for $name $version"
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=local_package,recipe,official_package \
+done < <(CheckDependencies --types=local_package,${norecursive+:recipe},official_package \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
 		  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
