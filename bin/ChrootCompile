@@ -76,6 +76,12 @@ Boolean "use-tmpfs" && usetmpfs=yes
 unset norecursive
 Boolean "no-recursive" && norecursive=yes
 
+unset localprograms
+Boolean "local-programs" && localprograms=yes
+
+unset verbose
+Boolean "verbose" && verbose="--verbose"
+
 unset usesystemindex
 if Boolean "new-names" 
 then
@@ -142,18 +148,12 @@ fi
 
 targetarch=$recipesubdir
 
-unset local_programs
-Boolean "local-programs" && local_programs=yes
-
-unset verbose
-Boolean "verbose" && verbose="--verbose"
-
 #############################################################################
 # Verify our whereabouts
 #############################################################################
 [ "$chrootCompileDir" ] && cd "$chrootCompileDir"
 
-if Boolean "setup-environment" || [ ! -d BaseDependencies -a ! "$local_programs" ]
+if Boolean "setup-environment" || [ ! -d BaseDependencies -a ! "$localprograms" ]
 then
     if [ ! -z "`ls`" ]
     then Die "You need to create a directory in which you should run ChrootCompile, where it will store its data files and create its chroot jails. Create an empty dir and run ChrootCompile from there."
@@ -396,7 +396,7 @@ fi
 #############################################################################
 # Getting packages for BaseDependencies - Temporary only
 #############################################################################
-if [ ! "$local_programs" ]
+if [ ! "$localprograms" ]
 then
    for arch in $hostarch $targetarch
    do
@@ -444,7 +444,7 @@ fetch_dependency() {
    if [ "${type}" = "recipe" -o "${type}" = "local_recipe" ]
    then
       Log_Normal "Will ChrootCompile ${application} ${version}"
-      ChrootCompile ${localrepository:+--local-repository} "${application}" "${version}" || Die "Failed building dependency ${application} ${version}"
+      ChrootCompile ${parsedoptions} "${application}" "${version}" || Die "Failed building dependency ${application} ${version}"
       pkg="$(ls --quoting-style=escape "$hostgetclean/${application}--${version}"*)"
    elif [ "${type}" = "local_package" ]
    then
