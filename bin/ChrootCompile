@@ -253,6 +253,7 @@ targetgetclean=${PWD}/Clean/$targetarch
 putclean=${PWD}/Clean/$targetarch
 hostdepsdownload=${PWD}/Downloaded/$hostarch
 targetdepsdownload=${PWD}/Downloaded/$targetarch
+targetunpacked=${PWD}/Unpacked/$targetarch
 
 mkdir -p $hostgetclean
 mkdir -p $targetgetclean
@@ -756,6 +757,7 @@ then
    [ $? -ne 0 ] && Die "Error on CreatePackage"
    mkdir -p $putclean
    cp -v $root/$name--$finalversion* $putclean
+   rm -rf "$targetunpacked/${name}"
    $(Boolean no-sign) || SignProgram ${putclean}/${name}--${finalversion}*--*
 else
    fullroot=`readlink -f $root`
@@ -763,6 +765,7 @@ else
    mkdir -p $fullroot/../$putclean/
    readlink -f $fullroot/../$putclean/$name--$finalversion--$targetarch.tar.bz2
    tar jcvpf $fullroot/../$putclean/$name--$finalversion--$targetarch.tar.bz2 $name/$finalversion
+   rm -rf "$fullroot/../$targetunpacked/${name}"
 fi
 
 # Remove the left over Area
