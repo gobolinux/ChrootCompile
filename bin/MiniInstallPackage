@@ -6,7 +6,7 @@
 }
 
 [ "$2" ] || {
-   echo "Usage:   `basename $0` [--real-copy] [--verbose] [--new-names] <package-file> <root> <unpackdir> [cross prefix dir]"
+   echo "Usage:   `basename $0` [--real-copy] [--verbose] [--new-names] <package-file> <root> [cross prefix dir]"
    echo "Example: `basename $0` Glibc--2.3.2--i686.tar.bz2 /Mount/Disk/"
    echo "         `basename $0` Glibc--2.3.2--i686.tar.bz2 /Mount/Disk/ /System/ARM"
    exit 1
@@ -35,13 +35,6 @@ then
    shift
 fi
 
-unpackdir="$3"
-if [ ! -d "$unpackdir" ]
-then
-   echo "$unpackdir is not a valid directory."
-   exit 1
-fi
-
 if [ -d "$1" ] 
 then
    dir=`readlink -f "$1"`
@@ -54,16 +47,22 @@ else
    name=${base%%--*}
    version=${base#*--}
    version=${version%%--*}
-   unpacked=$unpackdir/$name
+   unpacked=$(dirname $package)/$name
    if ! [ -d "$unpacked/$version" ]
    then
-      pushd $unpackdir &> /dev/null
-      tar xjpf "$1"
+      pushd $(dirname $package) &> /dev/null
+      tar xjpf "$package"
       popd &> /dev/null
    fi
 fi
 
-crossprefixdir="$4"
+if ! [ -d "$unpacked" ]
+then
+   echo "MiniInstallPackage: error - directory $unpacked does not exist."
+   exit 1
+fi
+
+crossprefixdir="$3"
 root="$2/$crossprefixdir"
 
 if [ "$goboPrefix" ]

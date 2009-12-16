@@ -482,7 +482,7 @@ install_dependency() {
       Log_Normal "Installing $application $version in $targetdir"
       unset usenewnames
       [ "$usesystemindex" ] && usenewnames="--new-names"
-      $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "$root" "$targetunpacked"
+      $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "$root" $params
       res=$?
    else
       Log_Normal "$application wasn't found in $package"
@@ -528,7 +528,7 @@ while read depname depversion type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
    install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-done < <(CheckDependencies --types=local_package --local-dirs="$hostgetclean,${chrootCompileDir}/Unpacked/$arch" \
+done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
                   --no-prompt ${noweb:+--no-web} --gobo-programs="${root}/Programs" \
 		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
@@ -539,7 +539,7 @@ done < <(CheckDependencies --types=local_package --local-dirs="$hostgetclean,${c
    do
       [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
       install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-   done < <(CheckDependencies --types=local_package --local-dirs="$hostgetclean,${chrootCompileDir}/Unpacked/$arch" \
+   done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
 		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
 }
@@ -549,7 +549,7 @@ while read depname depversion type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
    install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-done < <(CheckDependencies --types=local_package --local-dirs="$hostgetclean,${chrootCompileDir}/Unpacked/$arch" \
+done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
 		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
 
