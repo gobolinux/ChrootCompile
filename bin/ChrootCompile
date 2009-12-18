@@ -495,9 +495,7 @@ install_dependency() {
    return $res
 }
 
-anytype="local_package"
-[ -z "${norecursive}" ] && anytype="$anytype,recipe"
-anytype="$anytype,oficial_package"
+dependencytypes]="local_package,${norecursive+:recipe,}oficial_package"
 
 Log_Normal "Fetching base dependencies for ChrootCompile"
 while read depname depversion type uri
@@ -513,7 +511,7 @@ done < <(CheckDependencies --types=installed \
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=$anytype \
+done < <(CheckDependencies --types=${dependencytypes} \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
                   --no-prompt \
@@ -527,7 +525,7 @@ done < <(CheckDependencies --types=$anytype \
    while read depname depversion type uri
    do
       fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-   done < <(CheckDependencies --types=$anytype \
+   done < <(CheckDependencies --types=${dependencytypes} \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${recipedir}/Resources/BuildDependencies" \
                   --no-prompt \
@@ -541,7 +539,7 @@ Log_Normal "Fetching dependencies for $name $version"
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=$anytype \
+done < <(CheckDependencies --types=${dependencytypes} \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${recipedir}/Resources/Dependencies" \
                   --no-prompt \
