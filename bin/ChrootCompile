@@ -495,54 +495,74 @@ install_dependency() {
    return $res
 }
 
+anytype="local_package"
+[ -z "${norecursive}" ] && anytype="$anytype,recipe"
+anytype="$anytype,oficial_package"
+
 Log_Normal "Fetching base dependencies for ChrootCompile"
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
 done < <(CheckDependencies --types=installed \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
-                  --no-prompt ${noweb:+--no-web} --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
-                  ${blacklist:+--blacklist="${blacklist}"} --mode=all | grep NO_PROGRAM)
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=all | grep NO_PROGRAM)
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=local_package,${norecursive+:recipe},official_package \
+done < <(CheckDependencies --types=$anytype \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
-                  --no-prompt ${noweb:+--no-web} --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
-		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=missing)
 
 [ -e "${recipedir}/Resources/BuildDependencies" ] && {
    Log_Normal "Fetching build dependencies for $name $version"
    while read depname depversion type uri
    do
       fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-   done < <(CheckDependencies --types=local_package,${norecursive+:recipe},official_package \
+   done < <(CheckDependencies --types=$anytype \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
-                  --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
-		  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
-		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+                  --file="${recipedir}/Resources/BuildDependencies" \
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=missing)
 }
 
 Log_Normal "Fetching dependencies for $name $version"
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=local_package,${norecursive+:recipe},official_package \
+done < <(CheckDependencies --types=$anytype \
                   --local-dirs="$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload" \
-                  --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
-		  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
-		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+                  --file="${recipedir}/Resources/Dependencies" \
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=missing)
 
 Log_Normal "Installing dependencies for ChrootCompile"
 while read depname depversion type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
    install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+done < <(CheckDependencies --types=local_package \
+                  --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
-                  --no-prompt ${noweb:+--no-web} --gobo-programs="${root}/Programs" \
-		  ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${root}/Programs" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=missing)
 
 [ -e "${recipedir}/Resources/BuildDependencies" ] && {
    Log_Normal "Installing build dependencies for $name $version"
@@ -550,9 +570,14 @@ done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDi
    do
       [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
       install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-   done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
-                  --file="${recipedir}/Resources/BuildDependencies" --no-prompt ${noweb:+--no-web} \
-		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+   done < <(CheckDependencies --types=local_package \
+                  --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+                  --file="${recipedir}/Resources/BuildDependencies" \
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${root}/Programs" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=missing)
 }
 
 Log_Normal "Installing dependencies for $name $version"
@@ -560,9 +585,14 @@ while read depname depversion type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
    install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-done < <(CheckDependencies --types=local_package --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
-                  --file="${recipedir}/Resources/Dependencies" --no-prompt ${noweb:+--no-web} \
-		  --gobo-programs="${root}/Programs" ${blacklist:+--blacklist="${blacklist}"} --mode=missing)
+done < <(CheckDependencies --types=local_package \
+                  --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+                  --file="${recipedir}/Resources/Dependencies" \
+                  --no-prompt \
+                  ${noweb:+--no-web} \
+                  --gobo-programs="${root}/Programs" \
+                  ${blacklist:+--blacklist="${blacklist}"} \
+                  --mode=missing)
 
 targetroot=$root/$crossprefixdir
 if [ "$crossopts" ]
