@@ -458,6 +458,10 @@ fetch_dependency() {
       wget "${uri}" || Die "Failed fetching ${uri}"
       Quiet popd
       pkg="${hostdepsdownload}/$(basename "${uri}")"
+   elif [ "$uri" = "NO_PROGRAM" ]
+   then
+      [ "${version}" == "None" ] && version=""
+      pkg="$(ls --quoting-style=escape "$hostgetclean/${application}--${version}"*)"
    fi
    if [ -z "${pkg}" ]
    then
@@ -492,6 +496,13 @@ install_dependency() {
 }
 
 Log_Normal "Fetching base dependencies for ChrootCompile"
+while read depname depversion type uri
+do
+   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
+done < <(CheckDependencies --types=installed \
+                  --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
+                  --no-prompt ${noweb:+--no-web} --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
+                  ${blacklist:+--blacklist="${blacklist}"} --mode=all | grep NO_PROGRAM)
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
@@ -757,15 +768,15 @@ then
    [ $? -ne 0 ] && Die "Error on CreatePackage"
    mkdir -p $putclean
    cp -v $root/$name--$finalversion* $putclean
-   rm -rf "$targetunpacked/${name}"
    $(Boolean no-sign) || SignProgram ${putclean}/${name}--${finalversion}*--*
+   oldunpacked="$targetunpacked/${name}"
 else
    fullroot=`readlink -f $root`
    cd $root/View
    mkdir -p $fullroot/../$putclean/
    readlink -f $fullroot/../$putclean/$name--$finalversion--$targetarch.tar.bz2
    tar jcvpf $fullroot/../$putclean/$name--$finalversion--$targetarch.tar.bz2 $name/$finalversion
-   rm -rf "$fullroot/../$targetunpacked/${name}"
+   oldunpacked="$fullroot/../$targetunpacked/${name}"
 fi
 
 # Remove the left over Area
@@ -778,3 +789,5 @@ then
    else Log_Normal "Will not remove $root as it appears to be still in use."
    fi
 fi
+
+rm -rf "${oldunpacked}"
