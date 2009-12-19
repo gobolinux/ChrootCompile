@@ -495,7 +495,7 @@ install_dependency() {
    return $res
 }
 
-dependencytypes]="local_package,${norecursive+:recipe,}oficial_package"
+dependencytypes="local_package$([ -z "${norecursive}" ] && echo ",recipe"),oficial_package"
 
 Log_Normal "Fetching base dependencies for ChrootCompile"
 while read depname depversion type uri
