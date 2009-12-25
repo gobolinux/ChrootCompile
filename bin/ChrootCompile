@@ -458,10 +458,6 @@ fetch_dependency() {
       wget "${uri}" || Die "Failed fetching ${uri}"
       Quiet popd
       pkg="${hostdepsdownload}/$(basename "${uri}")"
-   elif [ "$uri" = "NO_PROGRAM" ]
-   then
-      [ "${version}" == "None" ] && version=""
-      pkg="$(ls --quoting-style=escape "$hostgetclean/${application}--${version}"*)"
    fi
    if [ -z "${pkg}" ]
    then
@@ -498,16 +494,6 @@ install_dependency() {
 dependencytypes="local_package$([ -z "${norecursive}" ] && echo ",recipe"),oficial_package"
 
 Log_Normal "Fetching base dependencies for ChrootCompile"
-while read depname depversion type uri
-do
-   fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
-done < <(CheckDependencies --types=installed \
-                  --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
-                  --no-prompt \
-                  ${noweb:+--no-web} \
-                  --gobo-programs="${chrootCompileDir}/Unpacked/$arch" \
-                  ${blacklist:+--blacklist="${blacklist}"} \
-                  --mode=all | grep NO_PROGRAM)
 while read depname depversion type uri
 do
    fetch_dependency "${chrootCompileDir}/Unpacked/$arch" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to fetch ${depname} ${depversion}"
