@@ -644,6 +644,7 @@ EOF
 sudo_rm_if_e $root/$programs/Sudo/Settings/sudoers
 $sudo_exec chmod 777 $root/$programs/Sudo/Settings
 cat <<EOF > $root/$programs/Sudo/Settings/sudoers
+Defaults !env_reset, setenv
 gobo ALL=(ALL) NOPASSWD: ALL
 EOF
 $sudo_exec chmod 755 $root/$programs/Sudo/Settings
