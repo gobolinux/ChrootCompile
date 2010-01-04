@@ -747,10 +747,14 @@ function check_dependencies() {
 
 # disabled for now
 # check_dependencies
-while read line
+for i in "$root/$goboLinks"/Environment/*
 do
-   eval "${line}"
-done < <(cat "$root/$programs"/*/Current/Resources/Environment)
+   envfile="$root/`readlink $i`"
+   while read line
+   do
+       eval "${line}"
+   done < <(cat "$envfile")
+done
 
 if [ -e "$root/$goboExecutables/gdk-pixbuf-query-loaders" ]
 then

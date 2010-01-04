@@ -36,8 +36,10 @@ then
 fi
 
 full_path="$1"
-root="`readlink -f $2`"
+root="$(readlink -f $2)"
 crossprefixdir="$3"
+appversion="$(basename $full_path)"
+appname="$(basename $(dirname $full_path))"
 
 if [ "$newnames" ]
 then gobolinks="$crossprefixdir/System/Index"
@@ -103,6 +105,11 @@ else
    do_link ${full_path}/Shared ${gobolinks}/Shared
 fi
 do_link ${full_path}/../Settings ${gobolinks}/../Settings
+
+if [ -e $root/${full_path}/Resources/Environment ]
+then 
+   ln -s ${full_path}/Resources/Environment $root/${goboLinks}/Environment/$appname--$appversion
+fi
 
 ln -nfs $(basename ${full_path}) $root/$(dirname ${full_path})/Current
 
