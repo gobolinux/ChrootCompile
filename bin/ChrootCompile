@@ -458,15 +458,21 @@ fetch_dependency() {
       wget "${uri}" || Die "Failed fetching ${uri}"
       Quiet popd
       pkg="${hostdepsdownload}/$(basename "${uri}")"
+   elif [ "$uri" = "NO_PROGRAM" ]
+   then
+      [ "${version}" == "None" ] && version=""
+      pkg="$(ls --quoting-style=escape {$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload}/${application}--${version}* 2> /dev/null)"
    fi
    if [ -z "${pkg}" ]
    then
       Log_Terse "No package found for ${application}"
       return 1
    else
+      pkg="$(GuessLatest $pkg)"
       Log_Normal "Unpacking ${pkg} in ${targetdir}"
       Quiet Unpack_Archive "${pkg}" "${targetdir}"
    fi
+   return 0
 }
 
 install_dependency() {
@@ -477,6 +483,12 @@ install_dependency() {
    local package="${5}"
    local res=0
    
+   if [ "$type" = "None" ]
+   then 
+      fetch_dependency ${chrootCompileDir}/Unpacked/$arch $application $version $type NO_PROGRAM
+      [ $? = 0 ] && type="local_package"
+   fi
+
    if [ "${type}" = "local_package" ]
    then
       Log_Normal "Installing $application $version in $targetdir"
