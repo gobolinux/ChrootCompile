@@ -486,7 +486,13 @@ install_dependency() {
    if [ "$type" = "None" ]
    then 
       fetch_dependency ${chrootCompileDir}/Unpacked/$arch $application $version $type NO_PROGRAM
-      [ $? = 0 ] && type="local_package"
+      [ "${version}" == "None" ] && version=""
+      pkg="$(ls --quoting-style=escape {$hostgetclean,${chrootCompileDir}/BaseDependencies,$hostdepsdownload}/${application}--${version}* 2> /dev/null)"
+      if [ "$pkg" ]
+      then
+         type="local_package"
+         package="$(GuessLatest $(readlink -f ${chrootCompileDir}/Unpacked/$arch/$application/${version}*))"
+      fi
    fi
 
    if [ "${type}" = "local_package" ]
