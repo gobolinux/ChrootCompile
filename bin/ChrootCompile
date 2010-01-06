@@ -557,7 +557,7 @@ while read depname depversion type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
    install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-done < <(CheckDependencies --types=installed,local_package \
+done < <(CheckDependencies --types=local_package \
                   --local-dirs="${chrootCompileDir}/Unpacked/$arch,${chrootCompileDir}/BaseDependencies" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
                   --no-prompt \
