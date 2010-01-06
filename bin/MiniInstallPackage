@@ -6,7 +6,7 @@
 }
 
 [ "$2" ] || {
-   echo "Usage:   `basename $0` [--real-copy] [--verbose] [--new-names] <package-file> <root> [cross prefix dir]"
+   echo "Usage:   `basename $0` [--real-copy] [--verbose] [--new-names] <package-file> <unpack-dir> <root> [cross prefix dir]"
    echo "Example: `basename $0` Glibc--2.3.2--i686.tar.bz2 /Mount/Disk/"
    echo "         `basename $0` Glibc--2.3.2--i686.tar.bz2 /Mount/Disk/ /System/ARM"
    exit 1
@@ -47,10 +47,11 @@ else
    name=${base%%--*}
    version=${base#*--}
    version=${version%%--*}
-   unpacked=$(dirname $package)/$name
+   version=${version%%-r*}
+   unpacked=`readlink -f "$2/$name"`
    if ! [ -d "$unpacked/$version" ]
    then
-      pushd $(dirname $package) &> /dev/null
+      pushd "$2"
       tar xjpf "$package"
       popd &> /dev/null
    fi
@@ -62,8 +63,8 @@ then
    exit 1
 fi
 
-crossprefixdir="$3"
-root="$2/$crossprefixdir"
+crossprefixdir="$4"
+root="$3/$crossprefixdir"
 
 if [ "$goboPrefix" ]
 then programs=`echo $goboPrograms | sed "s,^$goboPrefix,,g"`

@@ -500,7 +500,7 @@ install_dependency() {
       Log_Normal "Installing $application $version in $targetdir"
       unset usenewnames
       [ "$usesystemindex" ] && usenewnames="--new-names"
-      $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "$root" $params
+      $sudo_exec MiniInstallPackage $verbose $usenewnames "${package}" "${chrootCompileDir}/Unpacked/$arch" "$root" $params
       res=$?
    else
       Log_Normal "$application wasn't found in $package"
@@ -557,8 +557,8 @@ while read depname depversion type uri
 do
    [ "${uri}" = "NO_PROGRAM" ] && uri="${chrootCompileDir}/Unpacked/$arch"
    install_dependency "${root}" "${depname}" "${depversion}" "${type}" "${uri}" || Die "Unable to install ${depname} ${depversion} into ${root}"
-done < <(CheckDependencies --types=local_package \
-                  --local-dirs="${chrootCompileDir}/Unpacked/$arch" \
+done < <(CheckDependencies --types=installed,local_package \
+                  --local-dirs="${chrootCompileDir}/Unpacked/$arch,${chrootCompileDir}/BaseDependencies" \
                   --file="${goboPrograms}/ChrootCompile/Current/Resources/Dependencies" \
                   --no-prompt \
                   ${noweb:+--no-web} \
